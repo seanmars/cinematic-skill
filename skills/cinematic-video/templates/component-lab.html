@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- Isolated lab for one component (Three.js scene, UI flow, logo mark), rendered by scripts/render.py.
+     1. Copy this file and projected-overlays.js into lab/<component>/.
+     2. Put your module at ./assets/my-scene.js exporting createScene(canvas) -> Promise<{render(t), anchors?(t)}>.
+     3. Stills:  uv run <skill>/scripts/render.py lab/<component>/component-lab.html qa/lab-1.2.png --still 1.2
+        Proof:   uv run <skill>/scripts/render.py lab/<component>/component-lab.html qa/lab-proof.mp4 --fps 60 --duration 3.6
+     4. Send the proof to a fresh component critic (references/critic-prompts.md). -->
+<html><head><meta charset="utf-8">
+<style>html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#f4f0e5;font-family:system-ui,sans-serif}
+#lab{position:relative;width:1920px;height:1080px;overflow:hidden}canvas{position:absolute;inset:0;width:1920px;height:1080px}
+#ov{position:absolute;inset:0}.title{position:absolute;left:84px;top:110px;font-size:118px;line-height:1.05;letter-spacing:-5px;font-weight:650;color:#0a211d}</style></head>
+<body><div id="lab">
+<canvas id="c" width="1920" height="1080"></canvas>
+<div class="title">Your title<br>in context.</div><div id="ov"></div></div>
+<script type="module">
+import { createScene } from './assets/my-scene.js';
+import { mountLabels, updateLabels, OVERLAY_CSS } from './projected-overlays.js';
+window.ready = false;
+document.head.insertAdjacentHTML('beforeend', `<style>${OVERLAY_CSS}</style>`);
+const scene = await createScene(document.getElementById('c'));
+const labels = scene.anchors ? mountLabels(document.getElementById('ov'), [['a','01','Layer one'],['b','02','Layer two']]) : null;
+window.render = t => { const a = scene.anchors?.(t); scene.render(t); if (labels && a) updateLabels(labels, t, a, 1.2); };
+await document.fonts.ready;
+window.render(0); window.ready = true;
+</script></body></html>
