@@ -1,0 +1,10 @@
+schema: sdd
+type: requirement
+created: 2026-10-04
+decisions:
+  - 20261004_005438-storyboard-json-ssot.md
+  - 20261004_014759-storyboard-schema-technique-slots.md
+  - 20261004_021551-timeline-duration-ripple.md
+  - 20261004_021550-skill-md-and-gate-enforcement.md
+  - 20261004_015829-v1-testing-strategy.md
+  - 20261004_113314-project-custom-techniques.md

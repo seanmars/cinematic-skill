@@ -1,0 +1,15 @@
+schema: sdd
+type: requirement
+created: 2026-10-04
+decisions:
+  - 20261004_005439-web-mode-stage-gates.md
+  - 20261004_013430-studio-state-file-layout.md
+  - 20261004_013431-studio-preview-static-serving.md
+  - 20261004_014759-storyboard-schema-technique-slots.md
+  - 20261004_014800-web-gate-payloads.md
+  - 20261004_015829-studio-init-dev-loop.md
+  - 20261004_015829-v1-testing-strategy.md
+  - 20261004_021550-studio-live-progress.md
+  - 20261004_021551-studio-ui-layout.md
+  - 20261004_021551-timeline-duration-ripple.md
+  - 20261004_113314-project-custom-techniques.md
