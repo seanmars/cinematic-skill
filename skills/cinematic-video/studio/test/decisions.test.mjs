@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanUp, exists, gate, makeWorkspace, readJson, startStudio, writeJson } from './studio-helpers.mjs'
+import { cleanUp, exists, makeWorkspace, openGate, readJson, startStudio } from './studio-helpers.mjs'
 
 // Each accepted decision is written, then its reply removed so the next
 // decision finds the gate open again.
@@ -16,10 +16,6 @@ beforeEach(async () => {
 })
 
 afterEach(cleanUp)
-
-function openGate(gateId) {
-  writeJson(workspace, `video/demo/studio/gates/${gateId}.json`, gate(gateId))
-}
 
 function reply(gateId, body) {
   return studio.post(`/api/projects/demo/replies/${gateId}`, body)
@@ -38,7 +34,7 @@ describe('decisions per stage', () => {
     ['009-deliver', ['approve'], ['revise', 'ship']],
   ])('%s takes %j and refuses %j', async (gateId, accepted, refused) => {
     for (const decision of refused) {
-      openGate(gateId)
+      openGate(workspace, gateId)
       const res = await reply(gateId, { decision })
       expect(res.status, `${decision}: ${res.text}`).toBe(400)
       expect(exists(workspace, `${REPLIES}/${gateId}.json`)).toBe(false)
@@ -53,7 +49,7 @@ describe('decisions per stage', () => {
 })
 
 describe('Treatments', () => {
-  beforeEach(() => openGate('002-treatments'))
+  beforeEach(() => openGate(workspace, '002-treatments'))
 
   it('picks one treatment', async () => {
     const res = await reply('002-treatments', { decision: 'pick', notes: '', choice: { id: 'B' } })
@@ -109,7 +105,7 @@ describe('Treatments', () => {
 })
 
 describe('Gauntlet', () => {
-  beforeEach(() => openGate('008-gauntlet'))
+  beforeEach(() => openGate(workspace, '008-gauntlet'))
 
   it('Gauntlet 再一輪: records another round and what comes first', async () => {
     const choice = { priorities: ['Frozen time in s3', 'Loudness of the landing tick'] }
@@ -130,7 +126,7 @@ describe('Gauntlet', () => {
 })
 
 describe('Assets', () => {
-  beforeEach(() => openGate('004-assets'))
+  beforeEach(() => openGate(workspace, '004-assets'))
 
   it('regenerates the assets the user picked', async () => {
     const choice = { regenerate: ['source/gen/desk-01.png'] }
@@ -148,7 +144,7 @@ describe('Assets', () => {
 
 describe('v1 stays in the current stage', () => {
   it('v1 不能回到前面的階段: Build animatic takes its own replies, with the wish in the notes', async () => {
-    openGate('005-build-animatic')
+    openGate(workspace, '005-build-animatic')
 
     expect((await reply('005-build-animatic', { decision: 'pick', choice: { id: 'B' } })).status).toBe(400)
     expect((await reply('005-build-animatic', { decision: 'approve', choice: { id: 'B' } })).status).toBe(400)

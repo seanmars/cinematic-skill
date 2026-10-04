@@ -81,8 +81,24 @@ export function assign(root, slug, sessionId, reason = 'intake') {
   })
 }
 
-export function gate(gateId, extra = {}) {
-  return { gateId, stage: gateId.slice(4), openedAt: '2026-10-04T04:00:00.000Z', autoContinue: false, payload: {}, ...extra }
+const DEMO_STUDIO = 'video/demo/studio'
+export const DELIVERED = { deliveredAt: '2026-10-04T04:01:00.000Z' }
+
+// A gate Claude opened in the demo project.
+export function openGate(root, gateId, extra = {}) {
+  writeJson(root, `${DEMO_STUDIO}/gates/${gateId}.json`, {
+    gateId,
+    stage: gateId.slice(4),
+    openedAt: '2026-10-04T04:00:00.000Z',
+    autoContinue: false,
+    payload: {},
+    ...extra,
+  })
+}
+
+// The user's reply to a gate of the demo project.
+export function writeReply(root, gateId, decision, notes = '') {
+  writeJson(root, `${DEMO_STUDIO}/replies/${gateId}.json`, { decision, notes, changes: [] })
 }
 
 // The watcher scans folders already under video/ for a while after start; a

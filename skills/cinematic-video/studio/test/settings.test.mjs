@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanUp, exists, gate, makeWorkspace, readJson, startStudio, writeJson } from './studio-helpers.mjs'
+import { DELIVERED, cleanUp, exists, makeWorkspace, openGate, readJson, startStudio, writeReply } from './studio-helpers.mjs'
 
 let workspace
 let studio
@@ -23,8 +23,8 @@ describe('auto-continue settings', () => {
   })
 
   it('can be changed while Claude works: the settings are the studio\'s own file', async () => {
-    writeJson(workspace, 'video/demo/studio/gates/003-storyboard.json', gate('003-storyboard', { deliveredAt: '2026-10-04T04:01:00.000Z' }))
-    writeJson(workspace, 'video/demo/studio/replies/003-storyboard.json', { decision: 'approve', notes: '', changes: [] })
+    openGate(workspace, '003-storyboard', DELIVERED)
+    writeReply(workspace, '003-storyboard', 'approve')
 
     const res = await studio.post('/api/projects/demo/settings', { autoContinue: ['audio', 'gauntlet'] })
 

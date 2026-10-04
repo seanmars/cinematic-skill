@@ -5,8 +5,8 @@ import {
   assign,
   cleanUp,
   exists,
-  gate,
   makeWorkspace,
+  openGate,
   readJson,
   startStudio,
   writeJson,
@@ -43,7 +43,7 @@ describe('assigning a project', () => {
   })
 
   it('assigns a project that already has gates as reassign, so the session picks it up where it stopped', async () => {
-    writeJson(workspace, 'video/demo/studio/gates/003-storyboard.json', gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
     writeSession(workspace, 'session-a')
 
     const res = await studio.post('/api/projects/demo/assignment', { sessionId: 'session-a' })

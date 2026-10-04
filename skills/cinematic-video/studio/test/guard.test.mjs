@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanUp, gate, listFiles, makeWorkspace, startStudio, writeJson } from './studio-helpers.mjs'
+import { cleanUp, listFiles, makeWorkspace, openGate, startStudio } from './studio-helpers.mjs'
 
 const REPLY_URL = '/api/projects/demo/replies/003-storyboard'
 const REPLIES = 'video/demo/studio/replies'
@@ -10,7 +10,7 @@ let studio
 
 beforeEach(async () => {
   workspace = makeWorkspace()
-  writeJson(workspace, 'video/demo/studio/gates/003-storyboard.json', gate('003-storyboard'))
+  openGate(workspace, '003-storyboard')
   studio = await startStudio(workspace)
 })
 

@@ -2,7 +2,17 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ripple } from '../server/ripple.mjs'
-import { cleanUp, gate, makeWorkspace, readJson, startStudio, writeJson, writeText } from './studio-helpers.mjs'
+import {
+  DELIVERED,
+  cleanUp,
+  makeWorkspace,
+  openGate,
+  readJson,
+  startStudio,
+  writeJson,
+  writeReply,
+  writeText,
+} from './studio-helpers.mjs'
 
 // fixtures/demo: s1 0–1.786, s2 1.786–2.55, s3 2.55–5.714, s4 5.714–8.
 const SHOTS = [
@@ -101,7 +111,6 @@ describe('ripple', () => {
 })
 
 describe('duration edits at a gate', () => {
-  const GATE = 'video/demo/studio/gates/005-build-animatic.json'
   let workspace
   let studio
 
@@ -113,7 +122,7 @@ describe('duration edits at a gate', () => {
   afterEach(cleanUp)
 
   it('writes the storyboard and the plan, and lists the changes for the reply', async () => {
-    writeJson(workspace, GATE, gate('005-build-animatic'))
+    openGate(workspace, '005-build-animatic')
 
     const res = await studio.post('/api/projects/demo/storyboard/duration', { shot: 's3', duration: 4.0 })
 
@@ -132,7 +141,7 @@ describe('duration edits at a gate', () => {
   })
 
   it('keeps one cue per line, as the plan was written', async () => {
-    writeJson(workspace, GATE, gate('005-build-animatic'))
+    openGate(workspace, '005-build-animatic')
 
     await studio.post('/api/projects/demo/storyboard/duration', { shot: 's3', duration: 4.0 })
 
@@ -150,7 +159,7 @@ describe('duration edits at a gate', () => {
   })
 
   it('adds music-recut when audio/ holds a score', async () => {
-    writeJson(workspace, GATE, gate('005-build-animatic'))
+    openGate(workspace, '005-build-animatic')
     writeText(workspace, 'video/demo/audio/music-cut.wav', 'RIFF')
 
     const res = await studio.post('/api/projects/demo/storyboard/duration', { shot: 's3', duration: 4.0 })
@@ -159,7 +168,7 @@ describe('duration edits at a gate', () => {
   })
 
   it('adds music-recut when the storyboard plans a score', async () => {
-    writeJson(workspace, GATE, gate('005-build-animatic'))
+    openGate(workspace, '005-build-animatic')
     const storyboard = readJson(workspace, 'video/demo/storyboard.json')
     writeJson(workspace, 'video/demo/storyboard.json', {
       ...storyboard,
@@ -172,7 +181,7 @@ describe('duration edits at a gate', () => {
   })
 
   it.each([0, -1, 'four', null])('refuses the duration %s', async duration => {
-    writeJson(workspace, GATE, gate('005-build-animatic'))
+    openGate(workspace, '005-build-animatic')
     const before = readJson(workspace, 'video/demo/storyboard.json')
 
     const res = await studio.post('/api/projects/demo/storyboard/duration', { shot: 's3', duration })
@@ -182,8 +191,8 @@ describe('duration edits at a gate', () => {
   })
 
   it('refuses while Claude works, leaving both files alone', async () => {
-    writeJson(workspace, GATE, gate('005-build-animatic', { deliveredAt: '2026-10-04T04:01:00.000Z' }))
-    writeJson(workspace, 'video/demo/studio/replies/005-build-animatic.json', { decision: 'approve', notes: '', changes: [] })
+    openGate(workspace, '005-build-animatic', DELIVERED)
+    writeReply(workspace, '005-build-animatic', 'approve')
     const plan = readJson(workspace, 'video/demo/audio/plan.json')
 
     const res = await studio.post('/api/projects/demo/storyboard/duration', { shot: 's3', duration: 4.0 })

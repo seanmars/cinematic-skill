@@ -1,16 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanUp, connectEvents, gate, makeWorkspace, sleep, startStudio, writeJson, writeText } from './studio-helpers.mjs'
-
-const GATES = 'video/demo/studio/gates'
-const REPLIES = 'video/demo/studio/replies'
-const DELIVERED = { deliveredAt: '2026-10-04T04:01:00.000Z' }
+import {
+  DELIVERED,
+  cleanUp,
+  connectEvents,
+  makeWorkspace,
+  openGate,
+  sleep,
+  startStudio,
+  writeJson,
+  writeReply,
+  writeText,
+} from './studio-helpers.mjs'
 
 let workspace
 let studio
 
 function answered(gateId, decision) {
-  writeJson(workspace, `${GATES}/${gateId}.json`, gate(gateId, DELIVERED))
-  writeJson(workspace, `${REPLIES}/${gateId}.json`, { decision, notes: '', changes: [] })
+  openGate(workspace, gateId, DELIVERED)
+  writeReply(workspace, gateId, decision)
 }
 
 beforeEach(async () => {
@@ -36,7 +43,7 @@ describe('skipped gate warning', () => {
   })
 
   it('warns when the picture code changes while the storyboard gate waits for a reply', async () => {
-    writeJson(workspace, `${GATES}/003-storyboard.json`, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
     const listener = await connectEvents(studio)
 
     writeText(workspace, 'video/demo/index.html', '<p>built early</p>')
@@ -46,8 +53,8 @@ describe('skipped gate warning', () => {
   })
 
   it('warns when a storyboard appears before a treatment was picked', async () => {
-    writeJson(workspace, `${GATES}/002-treatments.json`, gate('002-treatments'))
-    writeJson(workspace, `${REPLIES}/002-treatments.json`, { decision: 'redo', notes: '', changes: [] })
+    openGate(workspace, '002-treatments')
+    writeReply(workspace, '002-treatments', 'redo')
     const listener = await connectEvents(studio)
 
     writeJson(workspace, 'video/demo/storyboard.json', { shots: [] })

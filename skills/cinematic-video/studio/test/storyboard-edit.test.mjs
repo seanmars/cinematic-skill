@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanUp, gate, makeWorkspace, readJson, startStudio, writeJson, writeText } from './studio-helpers.mjs'
+import { DELIVERED, cleanUp, makeWorkspace, openGate, readJson, startStudio, writeReply, writeText } from './studio-helpers.mjs'
 
-const GATE = 'video/demo/studio/gates/003-storyboard.json'
 const EDIT_URL = '/api/projects/demo/storyboard'
 
 let workspace
@@ -22,7 +21,7 @@ function shot(storyboard, id) {
 
 describe('storyboard edits at a gate', () => {
   it('更換運鏡: writes the field and lists it as changed', async () => {
-    writeJson(workspace, GATE, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
     expect(shot(original, 's1').techniques.movement).toBe('camera-movement/push-in.md')
 
     const res = await studio.post(EDIT_URL, { shot: 's1', field: 'techniques.movement', value: 'camera-movement/crane-up.md' })
@@ -39,7 +38,7 @@ describe('storyboard edits at a gate', () => {
   })
 
   it('sends the changed fields with the reply, merged with what the page sent', async () => {
-    writeJson(workspace, GATE, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
     await studio.post(EDIT_URL, { shot: 's1', field: 'techniques.movement', value: 'camera-movement/crane-up.md' })
     await studio.post(EDIT_URL, { shot: 's2', field: 'text.picture', value: 'One fold, then a second.' })
     await studio.post(EDIT_URL, { shot: 's1', field: 'techniques.movement', value: 'camera-movement/jib-up.md' })
@@ -66,7 +65,7 @@ describe('storyboard edits at a gate', () => {
     ['techniques.transition', null],
     ['text.camera', 'Hold, then a slow push.'],
   ])('edits %s', async (field, value) => {
-    writeJson(workspace, GATE, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
 
     const res = await studio.post(EDIT_URL, { shot: 's1', field, value })
 
@@ -77,7 +76,7 @@ describe('storyboard edits at a gate', () => {
   })
 
   it('accepts a custom technique of the project', async () => {
-    writeJson(workspace, GATE, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
     writeText(workspace, 'video/demo/techniques/camera-movement/drone-spiral.md', '---\nname: Drone Spiral\n---\n')
 
     const res = await studio.post(EDIT_URL, { shot: 's1', field: 'techniques.movement', value: 'camera-movement/drone-spiral.md' })
@@ -94,7 +93,7 @@ describe('storyboard edits at a gate', () => {
     ['a field the studio does not edit', 'assets', ['x.png']],
     ['an unknown text field', 'text.mood', 'calm'],
   ])('refuses %s', async (_, field, value) => {
-    writeJson(workspace, GATE, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
 
     const res = await studio.post(EDIT_URL, { shot: 's1', field, value })
 
@@ -103,7 +102,7 @@ describe('storyboard edits at a gate', () => {
   })
 
   it('refuses a shot the storyboard does not have', async () => {
-    writeJson(workspace, GATE, gate('003-storyboard'))
+    openGate(workspace, '003-storyboard')
 
     const res = await studio.post(EDIT_URL, { shot: 's9', field: 'text.camera', value: 'x' })
 
@@ -114,12 +113,12 @@ describe('storyboard edits at a gate', () => {
 describe('read-only while Claude works', () => {
   it.each([
     ['Claude 工作中: the gate was answered', () => {
-      writeJson(workspace, GATE, gate('003-storyboard', { deliveredAt: '2026-10-04T04:01:00.000Z' }))
-      writeJson(workspace, 'video/demo/studio/replies/003-storyboard.json', { decision: 'approve', notes: '', changes: [] })
+      openGate(workspace, '003-storyboard', DELIVERED)
+      writeReply(workspace, '003-storyboard', 'approve')
     }],
     ['the reply waits for the mod', () => {
-      writeJson(workspace, GATE, gate('003-storyboard'))
-      writeJson(workspace, 'video/demo/studio/replies/003-storyboard.json', { decision: 'approve', notes: '', changes: [] })
+      openGate(workspace, '003-storyboard')
+      writeReply(workspace, '003-storyboard', 'approve')
     }],
     ['no gate is open', () => {}],
   ])('refuses edits when %s', async (_, arrange) => {
