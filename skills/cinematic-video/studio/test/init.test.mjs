@@ -178,6 +178,7 @@ describe('init in normal mode', () => {
     const settings = readJson(path.join(target, '.claude/settings.json'))
     expect(settings.permissions.allow).toContain('mcp__cinematic-video__*')
     expect(settings.permissions.allow).toContain('Bash(uv run .claude/skills/cinematic-video/scripts/*)')
+    expect(settings.permissions.allow).toContain('PowerShell(uv run .claude/skills/cinematic-video/scripts/*)')
     expect(settings.hooks.Notification).toEqual([
       {
         matcher: 'permission_prompt',
