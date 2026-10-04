@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gate.schema.json",
+  "title": "Studio gate",
+  "description": "video/<slug>/studio/gates/<gateId>.json. Written by the mod that holds the project when Claude opens a gate; the only later write adds deliveredAt once the reply's wake-up turn has started.",
+  "type": "object",
+  "required": ["gateId", "stage", "openedAt", "autoContinue", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "gateId": {
+      "type": "string",
+      "description": "<three-digit sequence>-<stage>; also the file name and the reply's file name.",
+      "pattern": "^[0-9]{3}-(intake|treatments|storyboard|assets|build-animatic|build-polish|audio|gauntlet|deliver)$"
+    },
+    "stage": { "$ref": "#/$defs/stage" },
+    "openedAt": { "type": "string", "format": "date-time" },
+    "autoContinue": {
+      "type": "boolean",
+      "description": "True when the stage was set to auto-continue: the gate tool returned approved at once and no reply is expected."
+    },
+    "payload": {
+      "type": "object",
+      "description": "What the studio shows for this stage; its shape per stage is defined by the web studio."
+    },
+    "deliveredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the reply was delivered to Claude. Present means the reply must never be sent again."
+    }
+  },
+  "$defs": {
+    "stage": {
+      "enum": ["intake", "treatments", "storyboard", "assets", "build-animatic", "build-polish", "audio", "gauntlet", "deliver"]
+    }
+  }
+}

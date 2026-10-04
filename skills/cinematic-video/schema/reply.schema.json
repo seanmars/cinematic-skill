@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reply.schema.json",
+  "title": "Studio gate reply",
+  "description": "video/<slug>/studio/replies/<gateId>.json. Written once by the studio (or a test) to answer the gate of the same gateId.",
+  "type": "object",
+  "required": ["decision", "notes", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "type": "string",
+      "minLength": 1,
+      "description": "\"approve\" approves the stage; the other decisions per stage are defined by the web studio."
+    },
+    "notes": { "type": "string", "description": "The user's comments; may be empty." },
+    "changes": {
+      "type": "array",
+      "description": "The fields the user edited in the studio, so Claude knows what to re-read.",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

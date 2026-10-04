@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "assignment.schema.json",
+  "title": "Studio project assignment",
+  "description": "node_modules/.cinematic-studio/assignments/<slug>.json. Written by the studio (or a test): the one session whose mod handles this project's gates.",
+  "type": "object",
+  "required": ["slug", "sessionId", "assignedAt", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "assignedAt": { "type": "string", "format": "date-time" },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Why the project was assigned, e.g. intake or reassign."
+    }
+  }
+}
