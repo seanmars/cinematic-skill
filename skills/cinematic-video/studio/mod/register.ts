@@ -18,6 +18,7 @@ const OPEN_GATE = 'open_gate'
 const POLL_MS = 2000
 const HEARTBEAT_MS = 5000
 const STATE_DIR = 'node_modules/.cinematic-studio'
+const ACTIVITY_LIMIT = 50
 const STAGES = ['intake', 'treatments', 'storyboard', 'assets', 'build-animatic', 'build-polish', 'audio', 'gauntlet', 'deliver']
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
@@ -26,6 +27,8 @@ const RENDER_CALL = /cinematic-video[\\/]scripts[\\/]render\.py\s+(.*?)(?:&&|\|\
 const VIDEO_OUT = /(^|[\\/])out[\\/].+\.(mp4|mov|webm|mkv)$/i
 // video/<slug>, but not the tail of .../cinematic-video/scripts.
 const PROJECT_IN_COMMAND = /(?:^|[\s"'\\/])video[\\/]([a-z0-9]+(?:-[a-z0-9]+)*)(?=[\\/\s"']|$)/
+// The script a shell command runs, for the activity log.
+const SCRIPT_IN_COMMAND = /[\w.-]+\.(?:py|mjs|cjs|js|ts|sh|ps1)\b/
 
 const PROTOCOL = `# Cinematic video: web studio mode
 
@@ -35,8 +38,36 @@ This workspace runs the cinematic-video web studio. These rules override the ski
 - Unless the tool answers that the gate is approved (auto-continue), end your turn right after it. Do not start the next stage: the reply arrives as a new message starting with [studio gate <gateId>].
 - A reply for a gateId you have already handled is a duplicate: ignore it.
 - A reply lists the fields the user changed in the studio. Re-read those files (storyboard.json, treatments.json, audio/plan.json) before going on, and regenerate brief.md after storyboard.json changed.
-- A message starting with [studio project <slug>] hands this session a project another session started: continue from the gate it names.
-- The full high-quality render waits for an approved build-polish gate; stills, --seek-test and partial --start/--duration renders do not.`
+- A changed shots[<id>].techniques slot or shots[<id>].tags states the user's intent: rewrite that shot's free text (Picture, Camera, Transition as needed) and its code to match the new technique. A changed shots[<id>].text field: bring that shot's code in line with the new text.
+- A changed shots[<id>].duration means the studio already moved every later shot: update the time points in the code and in the shots' text to the new timing. audio/plan.json[<row>].time entries are cues it already moved by exactly the difference; leave them.
+- realign:audio/plan.json[<row>] is a cue inside the shot whose duration changed, left where it was: realign it to the shot's new action and rewrite its time in audio/plan.json.
+- music-recut means the film's length changed under a score: recut the music to the new timing, then mix again.
+- A message starting with [studio project <slug>] hands this session a project. A new one sent from the studio: start Intake from video/<slug>/studio/intake.json. One another session started: continue from the gate it names.
+- The full high-quality render waits for an approved build-polish gate; stills, --seek-test and partial --start/--duration renders do not.
+- During Build, keep video/<slug>/studio/progress.json current as each shot moves on, not storyboard.json: {"shots": {"<shot id>": {"status": "building" | "done", "stills": ["<path relative to the project>", ...]}}} (the skill's schema/progress.schema.json).
+- Every render.py video render (not --still or --seek-test) adds --progress-file node_modules/.cinematic-studio/render/<slug>.json, so the studio can show frames done and time left.
+
+## Gate payloads
+
+Each gate's payload is what its studio panel shows. Reports are markdown text; files are paths relative to the project folder.
+  intake: {"questions": [{"question": "...", "default": "..."}]} (at most 3; the default you will use if the user leaves it empty)
+  treatments: {} (the panel reads treatments.json and each option's preview)
+  storyboard: {"critic": "<storyboard critic report>"}
+  assets: {"assets": ["<generated file>", ...], "critic": "<asset critic report>", "ledger": "source/ledger.md"}
+  build-animatic: {"animatic": "<the 960x540 animatic>", "critic": "<component critic report>"}
+  build-polish: {"critic": "<component critic results>", "renderEstimate": "<time the full render will take>"}
+  audio: {"mix": "<the mix>", "loudness": "<loudness report>"}
+  gauntlet: {"round": <n>, "critic": "<what the critics found>", "measurements": "<frozen time and loudness>", "reviewLog": "qa/review_log.md"}
+  deliver: {"film": "out/final.mp4", "poster": "<the poster>", "notes": "<delivery notes>", "confirm": ["<fact the user must confirm>", ...]}
+
+## Replies
+
+- approve: the stage is done; go on. At build-polish it also starts the full render; at deliver it closes the project.
+- revise: rework this stage as the notes say, then open its gate again. v1 never goes back a stage: a wish about an earlier one (another treatment's grade, say) comes as notes on the current stage; judge how much to redo and say what changed at the next gate.
+- pick and mix carry a choice: {"id"} picks a treatment; {"id", "mix": [{"option", "element"}]} builds on one and takes elements from others. Record the choice in treatments.json chosen, then go on to the storyboard.
+- redo: write three new treatments from the notes and open the treatments gate again.
+- regenerate carries a choice {"regenerate": [<files>]}: make those assets again, then open the assets gate again.
+- another-round may carry a choice {"priorities": [...]}: run another Gauntlet round with those first. ship: the film is done; go on to deliver.`
 
 type Gate = {
   gateId: string
@@ -47,9 +78,13 @@ type Gate = {
   deliveredAt?: string
 }
 
-type Reply = { decision: string; notes: string; changes: string[] }
+// choice: what a deciding reply chose (a treatment, a mix, priorities,
+// assets to regenerate); see schema/reply.schema.json.
+type Reply = { decision: string; notes: string; changes: string[]; choice?: unknown }
 
 type Assignment = { slug: string; sessionId: string; assignedAt: string; reason: string }
+
+type Activity = { tool: string; summary: string; startedAt: string; endedAt: string | null }
 
 type Session = {
   sessionId: string
@@ -58,9 +93,12 @@ type Session = {
   heartbeatAt: string
   online: boolean
   project: string | null
+  activity: Activity[]
 }
 
 type GateInput = { project?: unknown; stage?: unknown; payload?: unknown }
+
+type ToolCall = { tool: string; command?: unknown; description?: unknown }
 
 type RenderCall = { output: string | undefined; isStillOrSeek: boolean; start: number; duration: number }
 
@@ -137,10 +175,18 @@ function wakePrompt(project: string, gate: Gate, reply: Reply) {
   return [
     `[studio gate ${gate.gateId}] The user replied to the ${gate.stage} gate of ${project}.`,
     `decision: ${reply.decision}`,
+    ...(reply.choice === undefined ? [] : [`choice: ${JSON.stringify(reply.choice)}`]),
     `notes: ${reply.notes || '(none)'}`,
     `changes: ${changes}`,
     `If you have already handled gate ${gate.gateId}, ignore this message.`,
   ].join('\n')
+}
+
+function intakePrompt(project: string) {
+  return (
+    `[studio project ${project}] The user started ${project} in the studio. Read video/${project}/studio/intake.json ` +
+    '(their brief, specs, profile and local paths to brand and assets) and run Intake; end it with the intake gate.'
+  )
 }
 
 function continuePrompt(project: string, currentGate: string | undefined) {
@@ -156,12 +202,20 @@ function sessionPath(root: string, sessionId: string) {
 }
 
 // After a hot reload the session file already exists: keep when the session
-// started and which project it took over.
+// started, which project it took over and what it has been doing.
 async function openSession($: EngineInterface, root: string, sessionId: string): Promise<Session> {
   const saved: Session | undefined = await readJson($, sessionPath(root, sessionId))
   const isSame = saved?.sessionId === sessionId
   const startedAt = isSame ? saved.startedAt : await now($)
-  return { sessionId, shortId: sessionId.slice(0, 6), startedAt, heartbeatAt: startedAt, online: true, project: isSame ? saved.project : null }
+  return {
+    sessionId,
+    shortId: sessionId.slice(0, 6),
+    startedAt,
+    heartbeatAt: startedAt,
+    online: true,
+    project: isSame ? saved.project : null,
+    activity: isSame && Array.isArray(saved.activity) ? saved.activity : [],
+  }
 }
 
 async function writeSession($: EngineInterface, root: string, current: Session) {
@@ -189,14 +243,18 @@ async function assignmentsFor($: EngineInterface, root: string) {
   return assignments
 }
 
-// The first poll that sees a project assigned here takes it over; a project
-// reassigned from another session also wakes Claude to pick up its current gate.
+// The first poll that sees a project assigned here takes it over. A project
+// reassigned from another session wakes Claude to pick up its current gate; an
+// Intake sent from the studio, with no gate yet, wakes it to start Intake.
 // Submit first, then record, as with replies.
 async function takeOver($: EngineInterface, root: string, assignment: Assignment) {
   if (session === undefined || session.project === assignment.slug) return
+  const studio = `${root}/video/${assignment.slug}/studio`
+  const gates = await jsonFiles($, `${studio}/gates`)
   if (assignment.reason === 'reassign') {
-    const gates = await jsonFiles($, `${root}/video/${assignment.slug}/studio/gates`)
     await $.prompt.submit({ text: continuePrompt(assignment.slug, gates.at(-1)?.replace(/\.json$/, '')) })
+  } else if (assignment.reason === 'intake' && gates.length === 0 && (await $.fs.exists(`${studio}/intake.json`))) {
+    await $.prompt.submit({ text: intakePrompt(assignment.slug) })
   }
   session.project = assignment.slug
   await writeSession($, root, session)
@@ -267,6 +325,35 @@ async function renderRefusal($: EngineInterface, command: string) {
   )
 }
 
+// A shell call reads as its first word and the script it runs, a subagent as
+// what it is for, any other tool as its name.
+function summarize(call: ToolCall) {
+  if (call.tool === 'Bash' || call.tool === 'PowerShell') {
+    const command = String(call.command ?? '').trim()
+    const script = SCRIPT_IN_COMMAND.exec(command)?.[0]
+    const first = command.split(/\s+/)[0] ?? ''
+    return script === undefined ? first : `${first} ${script}`
+  }
+  if (call.tool === 'Agent' && typeof call.description === 'string') return call.description
+  return call.tool
+}
+
+// What Claude is doing, for the studio (D8): every tool call's start, then its
+// end, in this session's file. Written whether the call runs or is refused.
+async function logActivity<T>($: EngineInterface, call: ToolCall, run: () => T | Promise<T>): Promise<T> {
+  if (session === undefined) return run()
+  const root = await $.session.root()
+  const entry: Activity = { tool: call.tool, summary: summarize(call), startedAt: await now($), endedAt: null }
+  session.activity = [...session.activity, entry].slice(-ACTIVITY_LIMIT)
+  await writeSession($, root, session)
+  try {
+    return await run()
+  } finally {
+    entry.endedAt = await now($)
+    await writeSession($, root, session)
+  }
+}
+
 async function poll($: EngineInterface) {
   if (isPolling) return
   isPolling = true
@@ -332,6 +419,10 @@ export const register: Register = on => {
     if (session === undefined) return composed
     return { sections: [...composed.sections, { id: `${PLUGIN}:web-mode`, text: PROTOCOL, scope: 'session' }] }
   })
+
+  // First, so it wraps the hooks below: the gate tool and refused renders are
+  // logged too.
+  on('tool.call', ($, e, next) => logActivity($, e as ToolCall, () => next(e)))
 
   on('tool.call', { tool: 'mcp__cinematic-video__open_gate' }, ($, e) => openGate($, e as GateInput))
 

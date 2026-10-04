@@ -136,6 +136,33 @@ test('prompt.compose adds the web-mode protocol', async ($, on) => {
   expect(protocol?.text).toContain('mcp__cinematic-video__open_gate')
   expect(protocol?.text).toMatch(/overrides?/i)
   expect(protocol?.text).toMatch(/already handled/i)
+  expect(protocol?.text).toMatch(/\[studio project <slug>\][^\n]*studio\/intake\.json/)
+  expect(protocol?.text).toMatch(/video\/<slug>\/studio\/progress\.json[^\n]*not[^\n]*storyboard\.json/)
+  expect(protocol?.text).toContain('--progress-file node_modules/.cinematic-studio/render/<slug>.json')
+  expect(protocol?.text).toMatch(/shots\[<id>\]\.techniques[^\n]*free text[^\n]*code/)
+  expect(protocol?.text).toMatch(/shots\[<id>\]\.duration[^\n]*time/)
+  expect(protocol?.text).toMatch(/realign:audio\/plan\.json\[<row>\][^\n]*realign/)
+  expect(protocol?.text).toMatch(/music-recut[^\n]*recut[^\n]*mix/)
+  // The payload each gate's panel reads.
+  for (const [stage, keys] of Object.entries({
+    intake: ['questions', 'default'],
+    treatments: ['treatments.json'],
+    storyboard: ['critic'],
+    assets: ['assets', 'critic', 'ledger'],
+    'build-animatic': ['animatic', 'critic'],
+    'build-polish': ['critic', 'renderEstimate'],
+    audio: ['mix', 'loudness'],
+    gauntlet: ['round', 'critic', 'measurements', 'reviewLog'],
+    deliver: ['film', 'poster', 'notes', 'confirm'],
+  })) {
+    const line = protocol?.text.split('\n').find(candidate => candidate.trimStart().startsWith(`${stage}: {`))
+    for (const key of keys) expect(line, `${stage} payload`).toContain(key)
+  }
+  // What each reply asks of Claude.
+  for (const decision of ['revise', 'pick', 'mix', 'redo', 'regenerate', 'another-round', 'ship']) {
+    expect(protocol?.text, decision).toMatch(new RegExp(`\\b${decision}\\b`))
+  }
+  expect(protocol?.text).toMatch(/choice[^\n]*treatments\.json[^\n]*chosen/)
 })
 
 test('no protocol and no guard without the workspace marker', async ($, on) => {

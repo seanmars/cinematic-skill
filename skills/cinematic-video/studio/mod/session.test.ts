@@ -96,6 +96,38 @@ test('a reloaded mod does not repeat the continuation', async ($, on) => {
   expect(engine.readJson(SESSION_FILE).startedAt).toBe(EARLIER)
 })
 
+test('只有一個線上 session: an Intake sent from the studio wakes Claude to start it', async ($, on) => {
+  const engine = fakeEngine(on, { sessionId: SESSION })
+  marker(engine)
+  engine.writeJson(`${STUDIO}/intake.json`, { slug: SLUG, brief: 'A kettle that sings the morning news' })
+  await startSession($)
+
+  assign(engine, SESSION, 'intake')
+  await engine.clock.advance(2000)
+
+  expect(engine.submitted).toHaveLength(1)
+  expect(engine.submitted[0]).toMatch(/^\[studio project lunelle-promo\]/)
+  expect(engine.submitted[0]).toContain(`video/${SLUG}/studio/intake.json`)
+  expect(engine.readJson(SESSION_FILE).project).toBe(SLUG)
+
+  await engine.clock.advance(6000)
+  expect(engine.submitted).toHaveLength(1)
+})
+
+test('an intake assignment does not restart Intake once the project has gates', async ($, on) => {
+  const engine = fakeEngine(on, { sessionId: SESSION })
+  marker(engine)
+  engine.writeJson(`${STUDIO}/intake.json`, { slug: SLUG, brief: 'A kettle' })
+  openGate(engine, '001-intake', { deliveredAt: EARLIER })
+  assign(engine, SESSION, 'intake')
+
+  await startSession($)
+  await engine.clock.advance(2000)
+
+  expect(engine.submitted).toEqual([])
+  expect(engine.readJson(SESSION_FILE).project).toBe(SLUG)
+})
+
 test('writes the session file and shows the short id in the status line', async ($, on) => {
   const engine = fakeEngine(on, { sessionId: SESSION })
   marker(engine)
@@ -111,6 +143,7 @@ test('writes the session file and shows the short id in the status line', async 
     heartbeatAt: iso(START),
     online: true,
     project: SLUG,
+    activity: [],
   })
   expect(engine.status.at(-1)).toContain('baf24f')
 })

@@ -49,6 +49,32 @@ test('一般 gate: writes the next gate file and tells Claude to end the turn', 
   expect(engine.submitted).toEqual([])
 })
 
+test('Treatments 混搭: the wake-up carries the choice the user made', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  gateFile(engine, '002-treatments')
+  await startSession($)
+  const choice = { id: 'A', mix: [{ option: 'C', element: 'structure' }] }
+
+  engine.writeJson(`${REPLIES}/002-treatments.json`, { decision: 'mix', notes: 'Warmer grade.', changes: [], choice })
+  await engine.clock.advance(2000)
+
+  expect(engine.submitted).toHaveLength(1)
+  expect(engine.submitted[0]).toContain(`choice: ${JSON.stringify(choice)}`)
+})
+
+test('a reply without a choice wakes Claude without a choice line', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  gateFile(engine, '003-storyboard')
+  await startSession($)
+
+  engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
+  await engine.clock.advance(2000)
+
+  expect(engine.submitted[0]).not.toContain('choice:')
+})
+
 test('auto-continue 的 gate: still writes the gate and answers approved', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
