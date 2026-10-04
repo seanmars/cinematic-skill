@@ -1,11 +1,12 @@
-## Purpose
+# studio-workspace Specification
 
+## Purpose
 讓使用者用一個 init 指令建立可以執行 web studio 的 workspace,並讓本 repo 的開發者用連結原始碼的方式熱重載 skill、mod 與 studio.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: init 的前置檢查
-init SHALL 只在目標目錄不存在或為空時建立 workspace;目標目錄已有非隱藏檔案時,除非使用者加上 force 選項,否則 SHALL 拒絕執行.寫入任何檔案前,init SHALL 檢查 Node 版本是否符合 studio 的需求;安裝依賴時 SHALL 優先使用 pnpm,找不到時退回 npm.
+init SHALL 只在目標目錄不存在或為空時建立 workspace;目標目錄已有非隱藏檔案時,除非使用者加上 force 選項,否則 SHALL 拒絕執行.寫入任何檔案前,init SHALL 檢查 Node 版本是否符合 studio 的需求.init 不安裝依賴,而是在下一步指示中列出指令;這些指令 SHALL 優先使用 pnpm,找不到 pnpm 時退回 npm.
 
 #### Scenario: 目標目錄不存在
 - **WHEN** 使用者對一個不存在的目錄執行 init
@@ -22,7 +23,7 @@ init SHALL 只在目標目錄不存在或為空時建立 workspace;目標目錄�
 
 #### Scenario: 沒有安裝 pnpm
 - **WHEN** 系統找不到 pnpm
-- **THEN** init 使用 npm,下一步指示也使用 npm 的指令
+- **THEN** 下一步指示中的安裝與啟動指令都使用 npm
 
 ### Requirement: 一般模式把 skill 複製到 project 層
 一般模式的 init SHALL 把執行中的 skill 整個複製到 workspace 的 project 層 skill 資料夾 (Claude Code 的 `.claude/skills/cinematic-video`),並 SHALL 排除 node_modules、Python 快取與 manifest 路徑.
@@ -33,11 +34,11 @@ init SHALL 只在目標目錄不存在或為空時建立 workspace;目標目錄�
 - **AND** skill 的其他檔案 (SKILL.md、references、scripts、schema、studio 原始碼) 都完整複製
 
 ### Requirement: mod 的 manifest 只在 workspace 產生
-init SHALL 在 workspace 的 skill 副本內產生 mod 的 plugin manifest 與 workspace 標記,讓在該 workspace 啟動的 Claude Code 自動載入 mod;散佈出去的 skill 本身 SHALL NOT 包含 manifest.mod 在沒有 workspace 標記的目錄中 SHALL NOT 啟用任何功能.
+init SHALL 在 workspace 的 skill 副本內產生 mod 的 plugin manifest 與 workspace 標記,讓在該 workspace 啟動、並接受 workspace trust 的 Claude Code 自動載入 mod;散佈出去的 skill 本身 SHALL NOT 包含 manifest.mod 在沒有 workspace 標記的目錄中 SHALL NOT 啟用任何功能.
 
 #### Scenario: 在 workspace 啟動 Claude Code
 - **WHEN** 使用者在 init 建立的 workspace 內啟動支援 function hooks 的 Claude Code
-- **THEN** studio mod 自動載入,不需要額外的啟動參數
+- **THEN** 使用者接受 workspace trust 後,studio mod 在同一個 session 自動載入,不需要額外的啟動參數
 
 #### Scenario: 全域安裝的 skill
 - **WHEN** 使用者透過 skills 安裝工具把 skill 安裝到全域,並在任意目錄啟動 Claude Code
