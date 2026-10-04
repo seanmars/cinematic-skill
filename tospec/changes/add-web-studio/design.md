@@ -40,7 +40,7 @@
 ### D3: API 與檔案的對應
 API 只做兩件事: 依檔案契約 (見 add-studio-bridge 的 D2) 讀寫檔案,以及做基本驗證.
 - **讀取**: 專案列表 (有 storyboard.json 或 `studio/intake.json` 的專案)、專案內容 (storyboard、treatments、gate 歷史、reply、settings、progress、`audio/plan.json`)、session 與 permission、render 進度、技巧索引.
-- **寫入**: reply (只能在 gate 開啟、還沒有 reply 時寫入)、storyboard 欄位與時長 (只能在 gate 開啟時)、settings、Intake (由 slug 規則建立專案目錄)、assignment (指派、重新指派、手動解鎖).
+- **寫入**: reply (只能在 gate 開啟、還沒有 reply 時寫入;依階段驗證 decision 與選填的 `choice`,見 `20261004_161115-gate-reply-choice.md`)、storyboard 欄位與時長 (只能在 gate 開啟時)、settings、Intake (由 slug 規則建立專案目錄)、assignment (指派、重新指派、手動解鎖).
 - studio 寫入時用 tmp 檔加上 rename;在 Windows 上遇到 EPERM 或 EBUSY 會重試.讀取時會容忍無法解析的 JSON.
 
 ### D4: 檔案變動的推送
@@ -88,6 +88,8 @@ server 啟動時解析 `INDEX.md`: 以 `## ` 標題切分,以每一列連結路�
 - Build 時要寫入 progress.json.
 - 執行 render 時要帶上 `--progress-file node_modules/.cinematic-studio/render/<slug>.json`.
 - 收到改動清單後要做哪些同步 (技巧欄位改寫文字與程式碼、`realign` 的 cue 重新對齊、`music-recut` 重剪與重新混音、程式碼與文字中的時間點).
+
+另外補上 add-studio-bridge 沒有涵蓋的喚醒: mod 原本只在 reason 為 `reassign` 時喚醒 Claude.從網頁送出的 Intake 會以 reason `intake` 指派,mod 接手這種指派、且專案還沒有任何 gate 時,用 `[studio project <slug>]` 喚醒 Claude 讀取 `studio/intake.json` 並開始 Intake.studio 指派時,只有「有 intake.json 且還沒有 gate」的專案用 `intake`,其餘用 `reassign`.
 
 ### D10: 跳過 gate 的偵測
 studio 依「最後一個已核准的 gate 階段」推算目前允許的產出範圍.例如分鏡還沒核准時,不應該出現新的鏡頭 stills 或 `index.html` 的變動;如果 watcher 在 Claude 工作期間看到超出範圍的產出,就送出警告事件.
