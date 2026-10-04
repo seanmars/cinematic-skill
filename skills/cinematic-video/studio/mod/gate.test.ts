@@ -1,39 +1,22 @@
 import { expect, test } from 'claude-code/testing'
-import { type FakeEngine, START, WORKSPACE, fakeEngine, startSession } from './fake-engine'
+import { EARLIER, type FakeEngine, START, WORKSPACE, fakeEngine, startSession } from './fake-engine'
 
 const SLUG = 'lunelle-promo'
 const GATES = `video/${SLUG}/studio/gates`
 const REPLIES = `video/${SLUG}/studio/replies`
 const OPEN_GATE = 'mcp__cinematic-video__open_gate'
 const REPLY = { decision: 'approve', notes: 'tighten shot 3', changes: ['shots[2].duration'] }
-const EARLIER = '2026-10-04T04:00:00.000Z'
 
 function studioWorkspace(engine: FakeEngine) {
-  engine.writeJson('studio.config.json', { skillVersion: '0.1.0' })
-  engine.writeJson(`node_modules/.cinematic-studio/assignments/${SLUG}.json`, {
-    slug: SLUG,
-    sessionId: 'session-a',
-    assignedAt: EARLIER,
-    reason: 'intake',
-  })
-}
-
-function gateFile(engine: FakeEngine, gateId: string, extra: Record<string, unknown> = {}) {
-  engine.writeJson(`${GATES}/${gateId}.json`, {
-    gateId,
-    stage: gateId.slice(4),
-    openedAt: EARLIER,
-    autoContinue: false,
-    payload: {},
-    ...extra,
-  })
+  engine.markStudio()
+  engine.assign(SLUG, 'session-a')
 }
 
 test('一般 gate: writes the next gate file and tells Claude to end the turn', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
-  gateFile(engine, '001-intake', { deliveredAt: EARLIER })
-  gateFile(engine, '002-treatments', { deliveredAt: EARLIER })
+  engine.openGate(SLUG, '001-intake', { deliveredAt: EARLIER })
+  engine.openGate(SLUG, '002-treatments', { deliveredAt: EARLIER })
   await startSession($)
 
   const answer = await $.tool.call({ tool: OPEN_GATE, project: SLUG, stage: 'storyboard', payload: { shots: 12 } })
@@ -52,7 +35,7 @@ test('一般 gate: writes the next gate file and tells Claude to end the turn', 
 test('Treatments 混搭: the wake-up carries the choice the user made', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
-  gateFile(engine, '002-treatments')
+  engine.openGate(SLUG, '002-treatments')
   await startSession($)
   const choice = { id: 'A', mix: [{ option: 'C', element: 'structure' }] }
 
@@ -66,7 +49,7 @@ test('Treatments 混搭: the wake-up carries the choice the user made', async ($
 test('a reply without a choice wakes Claude without a choice line', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
-  gateFile(engine, '003-storyboard')
+  engine.openGate(SLUG, '003-storyboard')
   await startSession($)
 
   engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
@@ -91,7 +74,7 @@ test('auto-continue 的 gate: still writes the gate and answers approved', async
 test('回覆檔出現: wakes Claude once and records deliveredAt', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
-  gateFile(engine, '003-storyboard')
+  engine.openGate(SLUG, '003-storyboard')
   await startSession($)
 
   engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
@@ -110,7 +93,7 @@ test('回覆檔出現: wakes Claude once and records deliveredAt', async ($, on)
 test('清除暫存資料後重新開啟 session: a delivered reply is never sent again', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
-  gateFile(engine, '003-storyboard', { deliveredAt: EARLIER })
+  engine.openGate(SLUG, '003-storyboard', { deliveredAt: EARLIER })
   engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
 
   await startSession($)
@@ -122,7 +105,7 @@ test('清除暫存資料後重新開啟 session: a delivered reply is never sent
 test('讀到寫一半的回覆檔: skips it and delivers on a later poll', async ($, on) => {
   const engine = fakeEngine(on)
   studioWorkspace(engine)
-  gateFile(engine, '003-storyboard')
+  engine.openGate(SLUG, '003-storyboard')
   await startSession($)
 
   engine.files.set(`${WORKSPACE}/${REPLIES}/003-storyboard.json`, '{ "decision": "appro')

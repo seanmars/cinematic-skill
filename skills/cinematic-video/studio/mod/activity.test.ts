@@ -1,16 +1,14 @@
 import { expect, test } from 'claude-code/testing'
-import { START, fakeEngine, startSession } from './fake-engine'
+import { START, fakeEngine, iso, startSession } from './fake-engine'
 
 const SESSION = 'baf24fd7-416c-4f59-806f-d89f9bf237db'
 const SESSION_FILE = `node_modules/.cinematic-studio/sessions/${SESSION}.json`
 const RENDER =
   'uv run .claude/skills/cinematic-video/scripts/render.py video/demo/index.html video/demo/out/final.mp4 --fps 30'
 
-const iso = (ms: number) => new Date(ms).toISOString()
-
 function studioSession(on: Parameters<typeof fakeEngine>[0]) {
   const engine = fakeEngine(on, { sessionId: SESSION })
-  engine.writeJson('studio.config.json', { skillVersion: '0.1.0' })
+  engine.markStudio()
   return engine
 }
 

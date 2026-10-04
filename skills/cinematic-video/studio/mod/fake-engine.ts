@@ -8,11 +8,21 @@ import { type MockClock, mock } from 'claude-code/testing'
 
 export const WORKSPACE = '/ws'
 export const START = Date.parse('2026-10-04T05:00:00.000Z')
+// A time before the session started, for files already there.
+export const EARLIER = '2026-10-04T04:00:00.000Z'
+
+export const iso = (ms: number) => new Date(ms).toISOString()
 
 export type FakeEngine = {
   files: Map<string, string>
   writeJson: (file: string, value: unknown) => void
   readJson: (file: string) => any
+  // The workspace marker init writes; without it the mod stays out of the way.
+  markStudio: () => void
+  // The state files the studio and Claude write, as each writes them.
+  assign: (slug: string, sessionId: string, reason?: string) => void
+  openGate: (slug: string, gateId: string, extra?: Record<string, unknown>) => void
+  reply: (slug: string, gateId: string, decision?: string) => void
   submitted: string[]
   tools: string[]
   status: (string | undefined)[]
@@ -79,14 +89,29 @@ export function fakeEngine(on: On, { sessionId = 'session-a' } = {}): FakeEngine
     return { text: e.text }
   })
   const clock = mock.clock(on, { now: START })
+  const writeJson = (file: string, value: unknown) => files.set(inWorkspace(file), JSON.stringify(value))
 
   return {
     files,
-    writeJson: (file, value) => files.set(inWorkspace(file), JSON.stringify(value)),
+    writeJson,
     readJson: file => {
       const text = files.get(inWorkspace(file))
       return text === undefined ? undefined : JSON.parse(text)
     },
+    markStudio: () => writeJson('studio.config.json', { skillVersion: '0.1.0' }),
+    assign: (slug, sessionId, reason = 'intake') =>
+      writeJson(`node_modules/.cinematic-studio/assignments/${slug}.json`, { slug, sessionId, assignedAt: EARLIER, reason }),
+    openGate: (slug, gateId, extra = {}) =>
+      writeJson(`video/${slug}/studio/gates/${gateId}.json`, {
+        gateId,
+        stage: gateId.slice(4),
+        openedAt: EARLIER,
+        autoContinue: false,
+        payload: {},
+        ...extra,
+      }),
+    reply: (slug, gateId, decision = 'approve') =>
+      writeJson(`video/${slug}/studio/replies/${gateId}.json`, { decision, notes: '', changes: [] }),
     submitted,
     tools,
     status,
