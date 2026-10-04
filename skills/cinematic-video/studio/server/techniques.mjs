@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { listDir } from './files.mjs'
 import { HttpError } from './http-error.mjs'
 import { projectDir } from './projects.mjs'
 
@@ -10,7 +11,6 @@ import { projectDir } from './projects.mjs'
 const LIBRARY = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../references/techniques')
 const HEADING = /^## (.+) \((\d+)\)$/
 const ROW = /^\| \[(.+?)\]\(([a-z-]+)\/([a-z0-9-]+)\.md\) \| (.*) \|$/
-const CATEGORY = /^[a-z-]+$/
 const TECHNIQUE_FILE = /^[a-z0-9-]+\.md$/
 
 function parseIndex(text) {
@@ -46,14 +46,6 @@ function readCustom(dir, category, file) {
   return { category, name, slug, path: `${category}/${file}`, summary, custom: true }
 }
 
-function listDir(dir) {
-  try {
-    return fs.readdirSync(dir)
-  } catch {
-    return []
-  }
-}
-
 // The project's own techniques/<category>/<slug>.md, in the library's
 // categories; where a path is in both, the library's file stands.
 function customTechniques(dir) {
@@ -79,7 +71,7 @@ export function isKnownTechnique(dir, techniquePath) {
 export function readTechniqueFile(workspace, slug, category, file) {
   const dir = projectDir(workspace, slug)
   const techniquePath = `${category}/${file}`
-  if (!CATEGORY.test(category) || !isKnownTechnique(dir, techniquePath)) throw new HttpError(404, `no technique ${techniquePath}`)
+  if (!isKnownTechnique(dir, techniquePath)) throw new HttpError(404, `no technique ${techniquePath}`)
   const source = libraryPaths.has(techniquePath) ? LIBRARY : path.join(dir, 'techniques')
   return { markdown: fs.readFileSync(path.join(source, category, file), 'utf8') }
 }

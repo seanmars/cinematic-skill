@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { listJson, readJson, removeFile } from './files.mjs'
+import { readJson, removeFile } from './files.mjs'
 import { HttpError } from './http-error.mjs'
-import { projectDir } from './projects.mjs'
+import { gateNames, projectDir } from './projects.mjs'
 import { STATE_DIR, isSessionOnline } from './sessions.mjs'
 
 // The studio alone decides which session's mod handles a project (see
@@ -16,7 +16,7 @@ export function readAssignment(workspace, slug) {
   return readJson(assignmentPath(workspace, slug)) ?? null
 }
 
-function requireOnline(workspace, sessionId) {
+export function requireOnline(workspace, sessionId) {
   if (typeof sessionId !== 'string' || !isSessionOnline(workspace, sessionId)) {
     throw new HttpError(409, `session ${sessionId} is not online`)
   }
@@ -32,7 +32,7 @@ function refuseWhileHolderOnline(workspace, slug) {
 // intake makes the mod start Intake from intake.json; reassign makes it pick
 // the project up where its gates stopped (D9).
 function reasonFor(dir) {
-  const hasGates = listJson(path.join(dir, 'studio/gates')).length > 0
+  const hasGates = gateNames(dir).length > 0
   return !hasGates && fs.existsSync(path.join(dir, 'studio/intake.json')) ? 'intake' : 'reassign'
 }
 
@@ -43,7 +43,7 @@ export async function assignProject(workspace, slug, sessionId, write) {
   return assignment
 }
 
-export async function postAssignment(workspace, slug, body, write) {
+export async function postAssignment(workspace, slug, body, { write }) {
   projectDir(workspace, slug)
   requireOnline(workspace, body?.sessionId)
   refuseWhileHolderOnline(workspace, slug)

@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { listJson, readJson } from './files.mjs'
+import { listDir, listJson, readJson } from './files.mjs'
 import { HttpError } from './http-error.mjs'
 
 export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
@@ -42,54 +42,62 @@ function gateState(gate, reply) {
   return gate.deliveredAt === undefined ? 'replied' : 'delivered'
 }
 
+export function gateNames(dir) {
+  return listJson(path.join(dir, 'studio/gates'))
+}
+
+// A gate with its reply, or undefined while its file is half-written.
+function readGateWithReply(dir, name) {
+  const gate = readJson(path.join(dir, 'studio/gates', name))
+  if (gate === undefined) return undefined
+  const reply = readJson(path.join(dir, 'studio/replies', name))
+  return { ...gate, reply, state: gateState(gate, reply) }
+}
+
 function readGates(dir) {
-  const studio = path.join(dir, 'studio')
-  return listJson(path.join(studio, 'gates')).flatMap(name => {
-    const gate = readJson(path.join(studio, 'gates', name))
-    if (gate === undefined) return []
-    const reply = readJson(path.join(studio, 'replies', name))
-    return [{ ...gate, reply, state: gateState(gate, reply) }]
-  })
+  return gateNames(dir).flatMap(name => readGateWithReply(dir, name) ?? [])
+}
+
+// The last readable gate, without reading the ones before it.
+function readLatestGate(dir) {
+  for (const name of gateNames(dir).reverse()) {
+    const gate = readGateWithReply(dir, name)
+    if (gate !== undefined) return gate
+  }
+  return undefined
 }
 
 // The page may edit project files only while the project waits at a gate;
 // once the user replied, Claude has them again.
 export function requireOpenGate(dir) {
-  const gate = readGates(dir).at(-1)
+  const gate = readLatestGate(dir)
   if (gate?.state !== 'open') throw new HttpError(409, 'the project is not waiting at a gate: Claude has it')
   return gate
 }
 
 export function listProjects(workspace) {
   const video = path.join(workspace, 'video')
-  let entries
-  try {
-    entries = fs.readdirSync(video, { withFileTypes: true })
-  } catch {
-    return []
-  }
-  return entries
-    .filter(entry => entry.isDirectory() && SLUG.test(entry.name) && isStudioProject(path.join(video, entry.name)))
-    .map(entry => entry.name)
+  return listDir(video)
+    .filter(name => SLUG.test(name) && isStudioProject(path.join(video, name)))
     .sort()
     .map(slug => {
-      const gate = readGates(path.join(video, slug)).at(-1)
+      const gate = readLatestGate(path.join(video, slug))
       return { slug, gate: gate === undefined ? null : { gateId: gate.gateId, stage: gate.stage, state: gate.state } }
     })
 }
 
-export function readProject(workspace, slug) {
-  const dir = projectDir(workspace, slug)
-  const read = file => readJson(path.join(dir, file)) ?? null
-  return {
-    slug,
-    intake: read('studio/intake.json'),
-    storyboard: read('storyboard.json'),
-    treatments: read('treatments.json'),
-    plan: read('audio/plan.json'),
-    progress: read('studio/progress.json'),
-    gates: readGates(dir),
-  }
+// The project files the page shows, by the key it reads them under.
+export const PROJECT_FILES = {
+  intake: 'studio/intake.json',
+  storyboard: 'storyboard.json',
+  treatments: 'treatments.json',
+  plan: 'audio/plan.json',
+  progress: 'studio/progress.json',
+}
+
+export function readProject(dir, slug) {
+  const files = Object.entries(PROJECT_FILES).map(([key, file]) => [key, readJson(path.join(dir, file)) ?? null])
+  return { slug, ...Object.fromEntries(files), gates: readGates(dir) }
 }
 
 // The gate file of a gateId, or a 404.

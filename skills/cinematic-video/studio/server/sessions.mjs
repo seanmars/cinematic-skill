@@ -39,7 +39,6 @@ export function readSessions(workspace, now = Date.now()) {
         sessionId: session.sessionId,
         shortId: session.shortId,
         startedAt: session.startedAt,
-        heartbeatAt: session.heartbeatAt,
         online,
         project: session.project ?? null,
         activity,

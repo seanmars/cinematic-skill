@@ -62,6 +62,11 @@ function setType(res, pathname) {
 // middleware and its SPA fallback. sirv answers Range requests, which lets
 // <video> seek.
 export function createPreview(workspace) {
+  const servers = new Map()
+  const serve = root => {
+    if (!servers.has(root)) servers.set(root, sirv(root, { dev: true, extensions: [], setHeaders: setType }))
+    return servers.get(root)
+  }
   return function preview(req, res, next) {
     const match = PREVIEW_URL.exec(req.url)
     if (match === null) return next()
@@ -75,6 +80,6 @@ export function createPreview(workspace) {
     if (root === null || decoded === null || !isInside(root, path.resolve(root, `.${decoded}`))) return notFound(res)
 
     req.url = rest + query
-    sirv(root, { dev: true, extensions: [], setHeaders: setType })(req, res, () => notFound(res))
+    serve(root)(req, res, () => notFound(res))
   }
 }

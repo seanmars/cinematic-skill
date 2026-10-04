@@ -49,16 +49,20 @@ export function readJson(file) {
   }
 }
 
-// The .json names in a folder, sorted; none when the folder is missing.
-export function listJson(dir) {
+// The names in a folder; none when the folder is missing.
+export function listDir(dir) {
   try {
-    return fs
-      .readdirSync(dir)
-      .filter(name => name.endsWith('.json'))
-      .sort()
+    return fs.readdirSync(dir)
   } catch {
     return []
   }
+}
+
+// The .json names in a folder, sorted.
+export function listJson(dir) {
+  return listDir(dir)
+    .filter(name => name.endsWith('.json'))
+    .sort()
 }
 
 async function withRetry(operation) {

@@ -5,3 +5,7 @@ export class HttpError extends Error {
     this.status = status
   }
 }
+
+export function badRequest(message) {
+  return new HttpError(400, message)
+}

@@ -9,12 +9,14 @@ const GUARDED = [
   { file: /^(index\.html|qa\/stills\/.+)$/, after: 'storyboard' },
 ]
 
+function isPassed(dir, stage) {
+  return readSettings(dir).autoContinue.includes(stage) || isStagePassed(dir, stage)
+}
+
 // The stage whose gate a new file got ahead of, if any.
 export function skippedStage(dir, file) {
-  const rule = GUARDED.find(candidate => candidate.file.test(file))
-  if (rule === undefined) return undefined
-  const isPassed = readSettings(dir).autoContinue.includes(rule.after) || isStagePassed(dir, rule.after)
-  return isPassed ? undefined : rule.after
+  const stage = GUARDED.find(rule => rule.file.test(file))?.after
+  return stage === undefined || isPassed(dir, stage) ? undefined : stage
 }
 
 // The warnings seen per project, in memory. A reader re-checks them, so one
@@ -22,11 +24,21 @@ export function skippedStage(dir, file) {
 export function createWarnings() {
   const byProject = new Map()
   return {
+    // Whether the warning is new.
     add(slug, warning) {
       const warnings = byProject.get(slug) ?? []
       const isKnown = warnings.some(known => known.skipped === warning.skipped && known.file === warning.file)
       if (!isKnown) byProject.set(slug, [...warnings, warning])
+      return !isKnown
     },
-    list: (slug, dir) => (byProject.get(slug) ?? []).filter(warning => skippedStage(dir, warning.file) !== undefined),
+    // Each guarded stage is checked once, however many files it warns about.
+    list(slug, dir) {
+      const passed = new Map()
+      const isSkipped = stage => {
+        if (!passed.has(stage)) passed.set(stage, isPassed(dir, stage))
+        return !passed.get(stage)
+      }
+      return (byProject.get(slug) ?? []).filter(warning => isSkipped(warning.skipped))
+    },
   }
 }

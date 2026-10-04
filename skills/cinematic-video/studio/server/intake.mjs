@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { assignProject } from './assignments.mjs'
-import { HttpError } from './http-error.mjs'
+import { assignProject, requireOnline } from './assignments.mjs'
+import { HttpError, badRequest } from './http-error.mjs'
 import { SLUG } from './projects.mjs'
 import { readSessions } from './sessions.mjs'
 
@@ -17,14 +17,14 @@ function isText(value) {
 // assets are local paths: v1 has no uploads.
 function parseIntake(body) {
   const { brief, specs = '', profile = null, brand = '', assets = [], slug, sessionId } = body ?? {}
-  if (!isText(brief) || brief.trim() === '') throw new HttpError(400, 'brief must not be empty')
-  if (!isText(specs) || !isText(brand)) throw new HttpError(400, 'specs and brand must be text')
-  if (profile !== null && !PROFILES.includes(profile)) throw new HttpError(400, `profile must be one of ${PROFILES.join(', ')}`)
+  if (!isText(brief) || brief.trim() === '') throw badRequest('brief must not be empty')
+  if (!isText(specs) || !isText(brand)) throw badRequest('specs and brand must be text')
+  if (profile !== null && !PROFILES.includes(profile)) throw badRequest(`profile must be one of ${PROFILES.join(', ')}`)
   if (!Array.isArray(assets) || !assets.every(asset => isText(asset) && asset !== '')) {
-    throw new HttpError(400, 'assets must list local paths')
+    throw badRequest('assets must list local paths')
   }
-  if (slug !== undefined && !(isText(slug) && SLUG.test(slug))) throw new HttpError(400, 'slug must be kebab-case')
-  if (sessionId !== undefined && !isText(sessionId)) throw new HttpError(400, 'sessionId must be text')
+  if (slug !== undefined && !(isText(slug) && SLUG.test(slug))) throw badRequest('slug must be kebab-case')
+  if (sessionId !== undefined && !isText(sessionId)) throw badRequest('sessionId must be text')
   return { form: { brief, specs, profile, brand, assets }, slug, sessionId }
 }
 
@@ -54,15 +54,17 @@ function freeSlug(workspace, base) {
 // Who gets the project: the session the user picked, else the only one
 // online; with none or several online the project waits for the user.
 function chooseSession(workspace, picked) {
+  if (picked !== undefined) {
+    requireOnline(workspace, picked)
+    return picked
+  }
   const online = readSessions(workspace).filter(session => session.online)
-  if (picked === undefined) return online.length === 1 ? online[0].sessionId : undefined
-  if (!online.some(session => session.sessionId === picked)) throw new HttpError(409, `session ${picked} is not online`)
-  return picked
+  return online.length === 1 ? online[0].sessionId : undefined
 }
 
 // The project folder and its intake.json exist from the moment the user
 // sends the form, so nothing typed is lost if no session is there to take it.
-export async function postIntake(workspace, body, write) {
+export async function postIntake(workspace, body, { write }) {
   const { form, slug: typed, sessionId: picked } = parseIntake(body)
   const sessionId = chooseSession(workspace, picked)
   const now = new Date()

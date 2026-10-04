@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { readJson } from './files.mjs'
-import { HttpError } from './http-error.mjs'
+import { HttpError, badRequest } from './http-error.mjs'
 import { projectDir, requireOpenGate } from './projects.mjs'
 import { ripple } from './ripple.mjs'
 import { isKnownTechnique } from './techniques.mjs'
@@ -33,13 +33,9 @@ function isTechnique(dir, value, category) {
   return typeof value === 'string' && value.startsWith(`${category}/`) && isKnownTechnique(dir, value)
 }
 
-function invalid(message) {
-  return new HttpError(400, message)
-}
-
 function editSlot(dir, shot, slot, value) {
   if (value !== null && !isTechnique(dir, value, SLOTS[slot])) {
-    throw invalid(`${slot} takes a ${SLOTS[slot]}/ technique the library or the project has, or null`)
+    throw badRequest(`${slot} takes a ${SLOTS[slot]}/ technique the library or the project has, or null`)
   }
   shot.techniques[slot] = value
 }
@@ -48,16 +44,16 @@ function editTags(dir, shot, value) {
   const isTag = tag =>
     typeof tag === 'string' && !MAIN_CATEGORIES.has(tag.split('/')[0]) && isKnownTechnique(dir, tag)
   if (!Array.isArray(value) || !value.every(isTag) || new Set(value).size !== value.length) {
-    throw invalid('tags take distinct techniques outside the four main slots')
+    throw badRequest('tags take distinct techniques outside the four main slots')
   }
   shot.tags = value
 }
 
 // An optional text emptied is dropped; Picture and Job must keep some text.
 function editText(shot, name, value) {
-  if (typeof value !== 'string') throw invalid(`text.${name} takes text`)
+  if (typeof value !== 'string') throw badRequest(`text.${name} takes text`)
   if (value !== '') shot.text[name] = value
-  else if (REQUIRED_TEXT.has(name)) throw invalid(`text.${name} cannot be empty`)
+  else if (REQUIRED_TEXT.has(name)) throw badRequest(`text.${name} cannot be empty`)
   else delete shot.text[name]
 }
 
@@ -66,7 +62,7 @@ function applyEdit(dir, shot, field, value) {
   if (group === 'techniques' && Object.hasOwn(SLOTS, name) && rest.length === 0) editSlot(dir, shot, name, value)
   else if (group === 'tags' && name === undefined) editTags(dir, shot, value)
   else if (group === 'text' && TEXT_FIELDS.has(name) && rest.length === 0) editText(shot, name, value)
-  else throw invalid(`the studio does not edit ${field}`)
+  else throw badRequest(`the studio does not edit ${field}`)
 }
 
 const SCORE_FILE = /(music|score)[^/\\]*\.(wav|mp3|m4a|aac|flac|ogg)$/i
@@ -90,7 +86,7 @@ export async function postDurationEdit(workspace, slug, body, { write, changeLog
   const gate = requireOpenGate(dir)
   const { shot: shotId, duration } = body ?? {}
   if (typeof duration !== 'number' || !Number.isFinite(duration) || duration <= 0) {
-    throw invalid('duration takes seconds above 0')
+    throw badRequest('duration takes seconds above 0')
   }
   const storyboardFile = path.join(dir, 'storyboard.json')
   const storyboard = readJson(storyboardFile)

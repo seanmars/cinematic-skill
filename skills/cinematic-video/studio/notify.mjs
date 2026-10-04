@@ -7,10 +7,9 @@
 // location: in link mode Node resolves the junction to the repo's source.
 import fs from 'node:fs'
 import path from 'node:path'
+import { writeJson } from './server/files.mjs'
+import { STATE_DIR } from './server/sessions.mjs'
 
 const input = JSON.parse(fs.readFileSync(0, 'utf8'))
-const file = path.join(input.cwd, 'node_modules/.cinematic-studio/permission', `${input.session_id}.json`)
-const record = { sessionId: input.session_id, message: input.message, waitingSince: new Date().toISOString() }
-
-fs.mkdirSync(path.dirname(file), { recursive: true })
-fs.writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`)
+const file = path.join(input.cwd, STATE_DIR, 'permission', `${input.session_id}.json`)
+await writeJson(file, { sessionId: input.session_id, message: input.message, waitingSince: new Date().toISOString() })

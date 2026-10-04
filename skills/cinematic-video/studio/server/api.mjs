@@ -1,7 +1,7 @@
 import { postAssignment, postUnlock, readAssignment } from './assignments.mjs'
 import { postDurationEdit, postStoryboardEdit } from './edits.mjs'
 import { validateMutationRequest } from './guard.mjs'
-import { HttpError } from './http-error.mjs'
+import { HttpError, badRequest } from './http-error.mjs'
 import { postIntake } from './intake.mjs'
 import { previewBase } from './preview.mjs'
 import { listProjects, projectDir, readProject } from './projects.mjs'
@@ -16,8 +16,8 @@ const BODY_LIMIT = 1024 * 1024
 // holds it, its render, where its preview lives, what was edited at the
 // current gate and which gates Claude may have skipped.
 function readProjectView(workspace, slug, { changeLog, warnings }) {
-  const project = readProject(workspace, slug)
   const dir = projectDir(workspace, slug)
+  const project = readProject(dir, slug)
   const gate = project.gates.at(-1)
   return {
     ...project,
@@ -34,36 +34,20 @@ function readProjectView(workspace, slug, { changeLog, warnings }) {
 // never touches the file system itself. Path segments are matched raw: a slug
 // check that fails on %2e%2e or %2F keeps every route inside its project.
 function routes(workspace, store) {
-  const project = '/api/projects/([^/]+)'
+  const project = rest => new RegExp(`^/api/projects/([^/]+)${rest}$`)
   return [
     ['GET', /^\/api\/projects$/, () => ({ projects: listProjects(workspace) })],
-    ['GET', new RegExp(`^${project}$`), ([slug]) => readProjectView(workspace, slug, store)],
-    ['GET', new RegExp(`^${project}/techniques$`), ([slug]) => readTechniques(workspace, slug)],
-    [
-      'GET',
-      new RegExp(`^${project}/techniques/([^/]+)/([^/]+)$`),
-      ([slug, category, file]) => readTechniqueFile(workspace, slug, category, file),
-    ],
+    ['GET', project(''), ([slug]) => readProjectView(workspace, slug, store)],
+    ['GET', project('/techniques'), ([slug]) => readTechniques(workspace, slug)],
+    ['GET', project('/techniques/([^/]+)/([^/]+)'), ([slug, category, file]) => readTechniqueFile(workspace, slug, category, file)],
     ['GET', /^\/api\/sessions$/, () => ({ sessions: readSessions(workspace) })],
-    ['POST', /^\/api\/intake$/, (_, body) => postIntake(workspace, body, store.write)],
-    [
-      'POST',
-      new RegExp(`^${project}/replies/([^/]+)$`),
-      ([slug, gateId], body) => postReply(workspace, slug, gateId, body, store),
-    ],
-    ['POST', new RegExp(`^${project}/storyboard$`), ([slug], body) => postStoryboardEdit(workspace, slug, body, store)],
-    [
-      'POST',
-      new RegExp(`^${project}/storyboard/duration$`),
-      ([slug], body) => postDurationEdit(workspace, slug, body, store),
-    ],
-    [
-      'POST',
-      new RegExp(`^${project}/assignment$`),
-      ([slug], body) => postAssignment(workspace, slug, body, store.write),
-    ],
-    ['POST', new RegExp(`^${project}/unlock$`), ([slug]) => postUnlock(workspace, slug)],
-    ['POST', new RegExp(`^${project}/settings$`), ([slug], body) => postSettings(workspace, slug, body, store.write)],
+    ['POST', /^\/api\/intake$/, (_, body) => postIntake(workspace, body, store)],
+    ['POST', project('/replies/([^/]+)'), ([slug, gateId], body) => postReply(workspace, slug, gateId, body, store)],
+    ['POST', project('/storyboard'), ([slug], body) => postStoryboardEdit(workspace, slug, body, store)],
+    ['POST', project('/storyboard/duration'), ([slug], body) => postDurationEdit(workspace, slug, body, store)],
+    ['POST', project('/assignment'), ([slug], body) => postAssignment(workspace, slug, body, store)],
+    ['POST', project('/unlock'), ([slug]) => postUnlock(workspace, slug)],
+    ['POST', project('/settings'), ([slug], body) => postSettings(workspace, slug, body, store)],
   ]
 }
 
@@ -82,7 +66,7 @@ async function readBody(req) {
   try {
     return JSON.parse(text)
   } catch {
-    throw new HttpError(400, 'body is not valid JSON')
+    throw badRequest('body is not valid JSON')
   }
 }
 

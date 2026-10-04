@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { readJson } from './files.mjs'
-import { HttpError } from './http-error.mjs'
+import { HttpError, badRequest } from './http-error.mjs'
 import { projectDir, readGate } from './projects.mjs'
 
 // What each gate may answer (web-gate-payloads): v1 only replies to the
@@ -18,10 +18,6 @@ const DECISIONS = {
   deliver: ['approve'],
 }
 
-function invalid(message) {
-  return new HttpError(400, message)
-}
-
 function isTextList(value) {
   return Array.isArray(value) && value.every(item => typeof item === 'string' && item !== '')
 }
@@ -32,7 +28,7 @@ function treatmentIds(dir) {
 }
 
 function requireTreatment(dir, id) {
-  if (!treatmentIds(dir).has(id)) throw invalid(`treatments.json has no treatment ${id}`)
+  if (!treatmentIds(dir).has(id)) throw badRequest(`treatments.json has no treatment ${id}`)
 }
 
 // The choice a deciding reply carries (gate-reply-choice): which treatment,
@@ -46,31 +42,31 @@ function parseChoice(dir, decision, choice) {
   if (decision === 'mix') {
     requireTreatment(dir, choice?.id)
     const { mix } = choice
-    if (!Array.isArray(mix) || mix.length === 0) throw invalid('a mix names the elements it takes')
+    if (!Array.isArray(mix) || mix.length === 0) throw badRequest('a mix names the elements it takes')
     for (const item of mix) {
       requireTreatment(dir, item?.option)
-      if (typeof item.element !== 'string' || item.element === '') throw invalid('a mixed element needs a name')
+      if (typeof item.element !== 'string' || item.element === '') throw badRequest('a mixed element needs a name')
     }
     return { id: choice.id, mix: mix.map(({ option, element }) => ({ option, element })) }
   }
   if (decision === 'another-round' && choice !== undefined) {
-    if (!isTextList(choice.priorities)) throw invalid('priorities take a list of text')
+    if (!isTextList(choice.priorities)) throw badRequest('priorities take a list of text')
     return { priorities: choice.priorities }
   }
   if (decision === 'regenerate') {
-    if (!isTextList(choice?.regenerate) || choice.regenerate.length === 0) throw invalid('regenerate names the assets')
+    if (!isTextList(choice?.regenerate) || choice.regenerate.length === 0) throw badRequest('regenerate names the assets')
     return { regenerate: choice.regenerate }
   }
-  if (choice !== undefined) throw invalid(`${decision} carries no choice`)
+  if (choice !== undefined) throw badRequest(`${decision} carries no choice`)
   return undefined
 }
 
 function parseReply(dir, stage, body) {
   const { decision, notes = '', changes = [], choice } = body ?? {}
   const decisions = DECISIONS[stage]
-  if (!decisions.includes(decision)) throw invalid(`the ${stage} gate takes ${decisions.join(', ')}`)
-  if (typeof notes !== 'string') throw invalid('notes must be text')
-  if (!isTextList(changes)) throw invalid('changes must list the edited fields')
+  if (!decisions.includes(decision)) throw badRequest(`the ${stage} gate takes ${decisions.join(', ')}`)
+  if (typeof notes !== 'string') throw badRequest('notes must be text')
+  if (!isTextList(changes)) throw badRequest('changes must list the edited fields')
   const parsedChoice = parseChoice(dir, decision, choice)
   return { decision, notes, changes, ...(parsedChoice === undefined ? {} : { choice: parsedChoice }) }
 }

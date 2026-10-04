@@ -1,17 +1,11 @@
 import path from 'node:path'
 import { TMP_SUFFIX } from './files.mjs'
-import { SLUG } from './projects.mjs'
+import { PROJECT_FILES, SLUG } from './projects.mjs'
+import { SETTINGS_FILE } from './settings.mjs'
 import { skippedStage } from './skipped-gates.mjs'
 
 // Files whose change the page re-reads a project for.
-const PROJECT_FILES = new Set([
-  'storyboard.json',
-  'treatments.json',
-  'audio/plan.json',
-  'studio/intake.json',
-  'studio/settings.json',
-  'studio/progress.json',
-])
+const WATCHED_FILES = new Set([...Object.values(PROJECT_FILES), SETTINGS_FILE])
 const GATE_FILE = /^studio\/(gates|replies)\/[^/]+\.json$/
 // What changes all the time without changing the picture: the studio's own
 // files, QA stills and rendered output.
@@ -29,7 +23,7 @@ function projectFile(video, changed) {
 
 function eventFor(file) {
   if (GATE_FILE.test(file)) return 'studio:gate'
-  if (PROJECT_FILES.has(file)) return 'studio:project'
+  if (WATCHED_FILES.has(file)) return 'studio:project'
   if (!NOT_PICTURE.test(file)) return 'studio:preview'
   return undefined
 }
@@ -54,9 +48,9 @@ export function pushFileChanges(server, { workspace, recentWrites, warnings }) {
 
   function warnIfSkipped({ slug, file }) {
     const skipped = skippedStage(path.join(video, slug), file)
-    if (skipped === undefined) return
-    warnings.add(slug, { skipped, file })
-    server.ws.send('studio:warning', { slug, skipped, file })
+    if (skipped !== undefined && warnings.add(slug, { skipped, file })) {
+      server.ws.send('studio:warning', { slug, skipped, file })
+    }
   }
 
   server.watcher.add(video)
