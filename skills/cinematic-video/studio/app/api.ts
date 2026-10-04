@@ -172,7 +172,6 @@ export type Session = {
   sessionId: string
   shortId: string
   startedAt: string
-  heartbeatAt: string
   online: boolean
   project: string | null
   activity: Activity[]
@@ -180,12 +179,10 @@ export type Session = {
   permission: { message: string; waitingSince: string } | null
 }
 
-export class ApiError extends Error {}
-
 async function call<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   const body = await res.json().catch(() => ({}))
-  if (!res.ok) throw new ApiError(body.error ?? res.statusText)
+  if (!res.ok) throw new Error(body.error ?? res.statusText)
   return body as T
 }
 

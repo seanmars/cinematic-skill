@@ -26,7 +26,6 @@ const zhTw = {
   'gate.state.delivered': 'Claude 工作中',
   'gate.state.auto': 'Claude 工作中 (自動繼續)',
   'gate.approve': '核准',
-  'gate.sending': '送出中…',
 
   'action.failed': '操作失敗: {message}',
 

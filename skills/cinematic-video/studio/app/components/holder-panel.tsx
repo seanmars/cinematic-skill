@@ -1,35 +1,26 @@
 import { useState } from 'react'
-import { api, type Project } from '@/api'
+import { api, type Project, type Session } from '@/api'
 import { Button } from '@/components/ui/button'
 import { useLocale } from '@/locale'
-import { useOnlineSessions, useStudio } from '@/studio'
+import { useOnlineSessions } from '@/studio'
 import { useAction } from '@/use-action'
 import { SessionPicker } from './session-picker'
 
 // Which session's Claude handles the project. A project nobody holds, or
 // whose holder went offline, can be handed to an online session; an offline
 // holder's project can also just be released.
-export function HolderPanel({ project }: { project: Project }) {
+export function HolderPanel({ project, holder }: { project: Project; holder: Session | undefined }) {
   const { t } = useLocale()
-  const { sessions, refresh } = useStudio()
   const online = useOnlineSessions()
   const { isRunning, error, run } = useAction()
   const [picked, setPicked] = useState<string | null>(null)
   const { assignment } = project
-  const holder = sessions.find(session => session.sessionId === assignment?.sessionId)
   const isHolderOnline = holder?.online === true
   // The mod's short id is the first six characters of the session id.
   const shortId = holder?.shortId ?? assignment?.sessionId.slice(0, 6) ?? ''
 
   async function assign(sessionId: string) {
-    if (await run(() => api.assign(project.slug, sessionId))) {
-      setPicked(null)
-      await refresh()
-    }
-  }
-
-  async function unlock() {
-    if (await run(() => api.unlock(project.slug))) await refresh()
+    if (await run(() => api.assign(project.slug, sessionId))) setPicked(null)
   }
 
   return (
@@ -63,7 +54,7 @@ export function HolderPanel({ project }: { project: Project }) {
         </>
       )}
       {assignment !== null && !isHolderOnline && (
-        <Button size="sm" variant="outline" disabled={isRunning} onClick={() => void unlock()}>
+        <Button size="sm" variant="outline" disabled={isRunning} onClick={() => void run(() => api.unlock(project.slug))}>
           {t('holder.unlock')}
         </Button>
       )}

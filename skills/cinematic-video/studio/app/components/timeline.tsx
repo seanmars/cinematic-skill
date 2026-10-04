@@ -1,7 +1,7 @@
 import { cn } from 'cn'
 import type { Cue, Storyboard } from '@/api'
 import { useLocale } from '@/locale'
-import { filmLength } from '@/storyboard'
+import { filmLength, shotStarts } from '@/storyboard'
 
 function percent(seconds: number, length: number) {
   return `${(seconds / length) * 100}%`
@@ -31,9 +31,7 @@ export function Timeline({
 }) {
   const { t } = useLocale()
   const length = filmLength(storyboard)
-  const starts = storyboard.shots.map((_, index) =>
-    storyboard.shots.slice(0, index).reduce((total, shot) => total + shot.duration, 0),
-  )
+  const starts = shotStarts(storyboard)
 
   return (
     <section aria-label={t('timeline.label')} className="flex flex-col gap-1.5 rounded-lg border bg-card p-3">

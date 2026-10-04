@@ -2,19 +2,21 @@ import { createContext, type ReactNode, useContext, useState } from 'react'
 import type { MixElement } from './api'
 
 // What the user is choosing at the open gate before replying: picked in the
-// middle (a treatment, mixed elements, assets, answers), sent from the
-// inspector.
+// middle (a treatment, mixed elements, assets, answers) or noted in the
+// inspector (the reply's notes, a note per shot), sent from the inspector.
 export type GateDraft = {
   treatment: string | null
   mix: MixElement[]
   regenerate: string[]
   priorities: string
   answers: Record<number, string>
+  notes: string
+  shotNotes: Record<string, string>
 }
 
 type GateDraftValue = { draft: GateDraft; update: (patch: Partial<GateDraft>) => void }
 
-const EMPTY: GateDraft = { treatment: null, mix: [], regenerate: [], priorities: '', answers: {} }
+const EMPTY: GateDraft = { treatment: null, mix: [], regenerate: [], priorities: '', answers: {}, notes: '', shotNotes: {} }
 
 const GateDraftContext = createContext<GateDraftValue | null>(null)
 

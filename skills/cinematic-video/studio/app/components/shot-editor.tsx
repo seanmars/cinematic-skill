@@ -14,8 +14,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useGateDraft } from '@/gate-draft'
 import { useLocale } from '@/locale'
-import { useStudio } from '@/studio'
 import { useAction } from '@/use-action'
 import { TechniqueDoc } from './technique-doc'
 
@@ -80,17 +80,20 @@ function SlotField({
   )
 }
 
-// Every category beyond the four slots, as removable tags.
+// Every category beyond the four slots, as removable tags. The list goes out
+// whole, so it waits while the last change is saving.
 function TagsField({
   tags,
   index,
   isEditable,
+  isSaving,
   onChange,
   onOpen,
 }: {
   tags: string[]
   index: TechniqueIndex
   isEditable: boolean
+  isSaving: boolean
   onChange: (tags: string[]) => void
   onOpen: (technique: Technique) => void
 }) {
@@ -116,6 +119,7 @@ function TagsField({
                 <button
                   type="button"
                   aria-label={t('tags.remove', { name: technique?.name ?? tag })}
+                  disabled={isSaving}
                   onClick={() => onChange(tags.filter(other => other !== tag))}
                 >
                   <X className="size-3" />
@@ -129,6 +133,7 @@ function TagsField({
         <select
           id="tag-add"
           className={SELECT_CLASS}
+          disabled={isSaving}
           value=""
           onChange={event => onChange([...tags, event.target.value])}
         >
@@ -237,32 +242,21 @@ export function ShotEditor({
   shot,
   index,
   isEditable,
-  note,
-  onNote,
 }: {
   slug: string
   shot: Shot
   index: TechniqueIndex
   isEditable: boolean
-  note: string
-  onNote: (note: string) => void
 }) {
   const { t } = useLocale()
-  const { refresh } = useStudio()
-  const { error, run } = useAction()
+  const { draft, update } = useGateDraft()
+  const { isRunning, error, run } = useAction()
   const [open, setOpen] = useState<Technique | null>(null)
-
-  async function edit(field: string, value: unknown) {
-    if (await run(() => api.editShot(slug, shot.id, field, value))) await refresh()
-  }
-
-  async function editDuration(duration: number) {
-    if (await run(() => api.editDuration(slug, shot.id, duration))) await refresh()
-  }
+  const edit = (field: string, value: unknown) => void run(() => api.editShot(slug, shot.id, field, value))
 
   return (
     <div className="flex flex-col gap-3 px-4">
-      <DurationField duration={shot.duration} isEditable={isEditable} onSave={value => void editDuration(value)} />
+      <DurationField duration={shot.duration} isEditable={isEditable} onSave={duration => void run(() => api.editDuration(slug, shot.id, duration))} />
       {SLOTS.map(slot => (
         <SlotField
           key={slot}
@@ -270,7 +264,7 @@ export function ShotEditor({
           value={shot.techniques[slot]}
           index={index}
           isEditable={isEditable}
-          onChange={value => void edit(`techniques.${slot}`, value)}
+          onChange={value => edit(`techniques.${slot}`, value)}
           onOpen={setOpen}
         />
       ))}
@@ -278,7 +272,8 @@ export function ShotEditor({
         tags={shot.tags}
         index={index}
         isEditable={isEditable}
-        onChange={tags => void edit('tags', tags)}
+        isSaving={isRunning}
+        onChange={tags => edit('tags', tags)}
         onOpen={setOpen}
       />
       {TEXT_FIELDS.map(field => (
@@ -287,7 +282,7 @@ export function ShotEditor({
           field={field}
           value={shot.text[field] ?? ''}
           isEditable={isEditable}
-          onSave={value => void edit(`text.${field}`, value)}
+          onSave={value => edit(`text.${field}`, value)}
         />
       ))}
       <div className="flex flex-col gap-1">
@@ -299,8 +294,8 @@ export function ShotEditor({
           rows={2}
           className="min-h-0 text-xs"
           disabled={!isEditable}
-          value={note}
-          onChange={event => onNote(event.target.value)}
+          value={draft.shotNotes[shot.id] ?? ''}
+          onChange={event => update({ shotNotes: { ...draft.shotNotes, [shot.id]: event.target.value } })}
         />
       </div>
       {error !== null && <p className="text-xs text-destructive">{error}</p>}

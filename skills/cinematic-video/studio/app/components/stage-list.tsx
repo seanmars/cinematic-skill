@@ -20,17 +20,17 @@ function StageMark({ project, stage }: { project: Project; stage: Stage }) {
 // gate and lets Claude go on without stopping.
 export function StageList() {
   const { t } = useLocale()
-  const { project, refresh } = useStudio()
+  const { project } = useStudio()
   const { isRunning, error, run } = useAction()
   if (project === null) return null
   const { slug, settings } = project
   const current = project.gates.at(-1)?.stage
 
-  async function toggle(stage: Stage) {
+  function toggle(stage: Stage) {
     const autoContinue = settings.autoContinue.includes(stage)
       ? settings.autoContinue.filter(other => other !== stage)
       : [...settings.autoContinue, stage]
-    if (await run(() => api.saveSettings(slug, { autoContinue }))) await refresh()
+    void run(() => api.saveSettings(slug, { autoContinue }))
   }
 
   return (
@@ -57,7 +57,7 @@ export function StageList() {
               aria-label={t('stages.autoContinueFor', { stage: t(`stage.${stage}`) })}
               checked={settings.autoContinue.includes(stage)}
               disabled={isRunning}
-              onChange={() => void toggle(stage)}
+              onChange={() => toggle(stage)}
             />
           </li>
         ))}

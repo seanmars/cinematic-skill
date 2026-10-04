@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { lines } from '@/format'
 import { useLocale } from '@/locale'
 import { useOnlineSessions, useStudio } from '@/studio'
 import { useAction } from '@/use-action'
@@ -20,18 +21,11 @@ function Field({ id, label, hint, children }: { id: string; label: string; hint?
   )
 }
 
-function lines(text: string) {
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line !== '')
-}
-
 // Sending it creates the project at once; the only session online gets it,
 // with several the user picks, with none it waits to be assigned.
 export function IntakeForm() {
   const { t } = useLocale()
-  const { select, refresh, setComposing } = useStudio()
+  const { select, setComposing } = useStudio()
   const online = useOnlineSessions()
   const { isRunning, error, run } = useAction()
   const [brief, setBrief] = useState('')
@@ -55,9 +49,7 @@ export function IntakeForm() {
       })
       created = result.slug
     })
-    if (!isSent) return
-    await refresh()
-    select(created)
+    if (isSent) select(created)
   }
 
   return (

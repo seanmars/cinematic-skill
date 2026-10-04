@@ -3,9 +3,8 @@ import { api, type Project, type ProjectSummary, type RenderProgress, type Sessi
 
 // What the page knows about the workspace, kept fresh by the server's push
 // events (studio:project, studio:gate, studio:warning, studio:sessions,
-// studio:renders). A
-// write the page made itself is not pushed back, so whoever writes calls
-// refresh().
+// studio:renders). A write the page made itself is not pushed back, so
+// useAction calls refresh() after it.
 
 type StudioContextValue = {
   projects: ProjectSummary[] | null
@@ -60,8 +59,8 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [select])
 
   const refresh = useCallback(async () => {
-    await loadProjects()
-    if (selectedRef.current !== null) await loadProject(selectedRef.current)
+    const slug = selectedRef.current
+    await Promise.all([loadProjects(), slug === null ? undefined : loadProject(slug)])
   }, [loadProjects, loadProject])
 
   useEffect(() => {
@@ -72,20 +71,24 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       if (change.slug === selectedRef.current) void loadProject(change.slug)
     }
     const onSessions = (snapshot: { sessions: Session[] }) => setSessions(snapshot.sessions)
-    // Arrives about every second during a render: patched in, not refetched.
+    // Arrives about every second during a render: patched in, not refetched,
+    // and left alone while the open project's own render did not move.
     const onRenders = (snapshot: { renders: Record<string, RenderProgress> }) =>
-      setProject(current => current && { ...current, render: snapshot.renders[current.slug] ?? null })
-    import.meta.hot?.on('studio:project', onChange)
-    import.meta.hot?.on('studio:gate', onChange)
-    import.meta.hot?.on('studio:warning', onChange)
-    import.meta.hot?.on('studio:sessions', onSessions)
-    import.meta.hot?.on('studio:renders', onRenders)
+      setProject(current => {
+        if (current === null) return current
+        const render = snapshot.renders[current.slug] ?? null
+        return render?.updatedAt === current.render?.updatedAt ? current : { ...current, render }
+      })
+    const listeners = [
+      ['studio:project', onChange],
+      ['studio:gate', onChange],
+      ['studio:warning', onChange],
+      ['studio:sessions', onSessions],
+      ['studio:renders', onRenders],
+    ] as const
+    for (const [event, listener] of listeners) import.meta.hot?.on(event, listener)
     return () => {
-      import.meta.hot?.off('studio:project', onChange)
-      import.meta.hot?.off('studio:gate', onChange)
-      import.meta.hot?.off('studio:warning', onChange)
-      import.meta.hot?.off('studio:sessions', onSessions)
-      import.meta.hot?.off('studio:renders', onRenders)
+      for (const [event, listener] of listeners) import.meta.hot?.off(event, listener)
     }
   }, [loadProjects, loadProject])
 

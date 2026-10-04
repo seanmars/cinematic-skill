@@ -5,6 +5,14 @@ export function clock(iso: string, languageTag: string, withSeconds = false) {
   return new Date(iso).toLocaleTimeString(languageTag, options)
 }
 
+// The non-empty lines of a text box, trimmed.
+export function lines(text: string) {
+  return text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line !== '')
+}
+
 // A span of seconds as m:ss.
 export function minutes(seconds: number) {
   const whole = Math.max(0, Math.round(seconds))

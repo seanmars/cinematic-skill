@@ -80,6 +80,15 @@ function IntakePanel({ payload, isOpen }: PanelProps) {
 function TreatmentCard({ option, base, isOpen }: { option: TreatmentOption; base: string; isOpen: boolean }) {
   const { t } = useLocale()
   const { draft, update } = useGateDraft()
+  const facts: [MessageKey, string | undefined][] = [
+    ['treatment.specs', option.specs],
+    ['treatment.stack', option.stack],
+    ['treatment.cta', option.cta],
+    ['treatment.audio', option.audio],
+    ['treatment.estimate', option.estimate],
+    ['treatment.risk', option.risk],
+    ['treatment.whyItFits', option.whyItFits],
+  ]
   const isBase = draft.treatment === option.id
   const isMixed = (element: string) => draft.mix.some(item => item.option === option.id && item.element === element)
   const toggle = (element: string) => {
@@ -111,24 +120,14 @@ function TreatmentCard({ option, base, isOpen }: { option: TreatmentOption; base
         <p className="text-xs text-muted-foreground">{option.look.typefaces.join(', ')}</p>
       </div>
       <dl className="grid grid-cols-[6rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-        <dt className="text-muted-foreground">{t('treatment.specs')}</dt>
-        <dd>{option.specs}</dd>
-        <dt className="text-muted-foreground">{t('treatment.stack')}</dt>
-        <dd>{option.stack}</dd>
-        {option.cta && (
-          <>
-            <dt className="text-muted-foreground">{t('treatment.cta')}</dt>
-            <dd>{option.cta}</dd>
-          </>
-        )}
-        <dt className="text-muted-foreground">{t('treatment.audio')}</dt>
-        <dd>{option.audio}</dd>
-        <dt className="text-muted-foreground">{t('treatment.estimate')}</dt>
-        <dd>{option.estimate}</dd>
-        <dt className="text-muted-foreground">{t('treatment.risk')}</dt>
-        <dd>{option.risk}</dd>
-        <dt className="text-muted-foreground">{t('treatment.whyItFits')}</dt>
-        <dd>{option.whyItFits}</dd>
+        {facts
+          .filter(([, value]) => value)
+          .map(([label, value]) => (
+            <div key={label} className="contents">
+              <dt className="text-muted-foreground">{t(label)}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
       </dl>
       <ol className="flex flex-col gap-1 text-xs">
         {option.shots.map(shot => (
@@ -251,19 +250,8 @@ function DeliverPanel({ payload, base }: PanelProps) {
   )
 }
 
-function MediaWithReports({ src, reports }: { src: string | undefined; reports: [MessageKey, string | undefined][] }) {
-  const { t } = useLocale()
-  return (
-    <>
-      {src && <Media src={src} />}
-      {reports.map(([title, text]) => (
-        <Report key={title} title={t(title)} text={text} />
-      ))}
-    </>
-  )
-}
-
 function StageContent(props: PanelProps & { stage: Gate['stage'] }) {
+  const { t } = useLocale()
   const { payload, base } = props
   switch (props.stage) {
     case 'intake':
@@ -271,29 +259,29 @@ function StageContent(props: PanelProps & { stage: Gate['stage'] }) {
     case 'treatments':
       return <TreatmentsPanel {...props} />
     case 'storyboard':
-      return <MediaWithReports src={undefined} reports={[['gate.critic', payload.critic]]} />
+      return <Report title={t('gate.critic')} text={payload.critic} />
     case 'assets':
       return <AssetsPanel {...props} />
     case 'build-animatic':
       return (
-        <MediaWithReports
-          src={payload.animatic && `${base}${payload.animatic}`}
-          reports={[['gate.critic', payload.critic]]}
-        />
+        <>
+          {payload.animatic && <Media src={`${base}${payload.animatic}`} />}
+          <Report title={t('gate.critic')} text={payload.critic} />
+        </>
       )
     case 'build-polish':
       return (
-        <MediaWithReports
-          src={undefined}
-          reports={[
-            ['gate.critic', payload.critic],
-            ['polishGate.estimate', payload.renderEstimate],
-          ]}
-        />
+        <>
+          <Report title={t('gate.critic')} text={payload.critic} />
+          <Report title={t('polishGate.estimate')} text={payload.renderEstimate} />
+        </>
       )
     case 'audio':
       return (
-        <MediaWithReports src={payload.mix && `${base}${payload.mix}`} reports={[['audioGate.loudness', payload.loudness]]} />
+        <>
+          {payload.mix && <Media src={`${base}${payload.mix}`} />}
+          <Report title={t('audioGate.loudness')} text={payload.loudness} />
+        </>
       )
     case 'gauntlet':
       return <GauntletPanel {...props} />

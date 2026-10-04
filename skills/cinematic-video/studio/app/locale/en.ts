@@ -27,7 +27,6 @@ const en: Record<keyof typeof zhTw, string> = {
   'gate.state.delivered': 'Claude is working',
   'gate.state.auto': 'Claude is working (auto-continue)',
   'gate.approve': 'Approve',
-  'gate.sending': 'Sending…',
 
   'action.failed': 'That did not work: {message}',
 

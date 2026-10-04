@@ -1,20 +1,12 @@
-import { useState } from 'react'
 import { type Choice, type Cue, type Gate, type Stage, api, realignRows } from '@/api'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { lines } from '@/format'
 import { type GateDraft, useGateDraft } from '@/gate-draft'
 import { type MessageKey, useLocale } from '@/locale'
-import { useStudio } from '@/studio'
 import { useAction } from '@/use-action'
 import { GateStateBadge } from './gate-state'
-
-function lines(text: string) {
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line !== '')
-}
 
 // A reply the gate offers. choice turns the draft into the reply's choice:
 // undefined sends none, null means the draft is not ready for this reply.
@@ -74,15 +66,15 @@ const ACTIONS: Record<Stage, Action[]> = {
 
 // The user's notes, the answers to Claude's Intake questions, then one line
 // per shot that has a note of its own.
-function replyNotes(gate: Gate, notes: string, draft: GateDraft, shotNotes: Record<string, string>) {
+function replyNotes(gate: Gate, draft: GateDraft) {
   const answers = (gate.payload.questions ?? []).flatMap((item, index) => {
     const answer = draft.answers[index]?.trim()
     return answer ? [`${item.question}\n→ ${answer}`] : []
   })
-  const perShot = Object.entries(shotNotes)
+  const perShot = Object.entries(draft.shotNotes)
     .filter(([, note]) => note.trim() !== '')
     .map(([shotId, note]) => `${shotId}: ${note.trim()}`)
-  return [notes.trim(), ...answers, ...perShot].filter(line => line !== '').join('\n')
+  return [draft.notes.trim(), ...answers, ...perShot].filter(line => line !== '').join('\n')
 }
 
 // Answers the open gate. The studio adds every field edited at this gate to
@@ -92,30 +84,26 @@ export function ReplyPanel({
   gate,
   changes,
   plan,
-  shotNotes,
 }: {
   slug: string
   gate: Gate
   changes: string[]
   plan: Cue[] | null
-  shotNotes: Record<string, string>
 }) {
   const { t } = useLocale()
-  const { refresh } = useStudio()
-  const { draft } = useGateDraft()
+  const { draft, update } = useGateDraft()
   const { isRunning, error, run } = useAction()
-  const [notes, setNotes] = useState('')
   const isOpen = gate.state === 'open'
   const realign = realignRows(changes).flatMap(row => (plan?.[row] === undefined ? [] : [plan[row]]))
 
   async function send(action: Action, choice: Choice | undefined) {
     const reply = {
       decision: action.decision,
-      notes: replyNotes(gate, notes, draft, shotNotes),
+      notes: replyNotes(gate, draft),
       changes: [],
       ...(choice === undefined ? {} : { choice }),
     }
-    if (await run(() => api.reply(slug, gate.gateId, reply))) await refresh()
+    await run(() => api.reply(slug, gate.gateId, reply))
   }
 
   return (
@@ -130,8 +118,8 @@ export function ReplyPanel({
           rows={3}
           className="min-h-0 text-xs"
           disabled={!isOpen}
-          value={notes}
-          onChange={event => setNotes(event.target.value)}
+          value={draft.notes}
+          onChange={event => update({ notes: event.target.value })}
         />
       </div>
       <div className="flex flex-col gap-1 text-xs">

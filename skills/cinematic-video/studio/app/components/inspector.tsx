@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import type { Gate, Project, Storyboard } from '@/api'
 import { useLocale } from '@/locale'
 import { useStudio } from '@/studio'
@@ -10,19 +9,7 @@ import { ShotEditor, useTechniqueIndex } from './shot-editor'
 
 // The shot the timeline picked; editable only while the project waits at a
 // gate, read-only while Claude works.
-function ShotSection({
-  project,
-  storyboard,
-  isEditable,
-  shotNotes,
-  onShotNote,
-}: {
-  project: Project
-  storyboard: Storyboard
-  isEditable: boolean
-  shotNotes: Record<string, string>
-  onShotNote: (shotId: string, note: string) => void
-}) {
+function ShotSection({ project, storyboard, isEditable }: { project: Project; storyboard: Storyboard; isEditable: boolean }) {
   const { t } = useLocale()
   const { selectedShot } = useStudio()
   const index = useTechniqueIndex(project.slug)
@@ -38,46 +25,27 @@ function ShotSection({
       {!isEditable && <p className="px-4 pb-2 text-xs text-busy">{t('shot.readOnly')}</p>}
       {shot === undefined && <p className="px-4 text-xs text-muted-foreground">{t('shot.pick')}</p>}
       {shot !== undefined && index !== null && (
-        <ShotEditor
-          slug={project.slug}
-          shot={shot}
-          index={index}
-          isEditable={isEditable}
-          note={shotNotes[shot.id] ?? ''}
-          onNote={note => onShotNote(shot.id, note)}
-        />
+        <ShotEditor slug={project.slug} shot={shot} index={index} isEditable={isEditable} />
       )}
     </>
   )
 }
 
-// Everything the user answers at one gate; a new gate starts it afresh.
+// Everything the user answers at one gate; a new gate remounts it, which
+// drops unsaved field edits and reloads the techniques.
 function GateWork({ project, gate }: { project: Project; gate: Gate | undefined }) {
   const { t } = useLocale()
-  const [shotNotes, setShotNotes] = useState<Record<string, string>>({})
   const isEditable = gate?.state === 'open'
 
   return (
     <>
       {project.storyboard !== null && (
-        <ShotSection
-          project={project}
-          storyboard={project.storyboard}
-          isEditable={isEditable}
-          shotNotes={shotNotes}
-          onShotNote={(shotId, note) => setShotNotes(notes => ({ ...notes, [shotId]: note }))}
-        />
+        <ShotSection project={project} storyboard={project.storyboard} isEditable={isEditable} />
       )}
       {gate !== undefined && (
         <>
           <PanelHeading>{t('inspector.heading')}</PanelHeading>
-          <ReplyPanel
-            slug={project.slug}
-            gate={gate}
-            changes={project.changes}
-            plan={project.plan}
-            shotNotes={shotNotes}
-          />
+          <ReplyPanel slug={project.slug} gate={gate} changes={project.changes} plan={project.plan} />
         </>
       )}
     </>
@@ -95,7 +63,7 @@ export function Inspector() {
   return (
     <div className="pb-6">
       <PanelHeading>{t('holder.heading')}</PanelHeading>
-      <HolderPanel project={project} />
+      <HolderPanel project={project} holder={holder} />
       {holder !== undefined && (
         <>
           <PanelHeading>{t('activity.heading')}</PanelHeading>

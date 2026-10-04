@@ -23,3 +23,13 @@ export function frameRate(storyboard: Storyboard) {
 export function filmLength(storyboard: Storyboard) {
   return storyboard.shots.reduce((total, shot) => total + shot.duration, 0)
 }
+
+// Where each shot starts, in seconds.
+export function shotStarts(storyboard: Storyboard) {
+  let start = 0
+  return storyboard.shots.map(shot => {
+    const at = start
+    start += shot.duration
+    return at
+  })
+}
