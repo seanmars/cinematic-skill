@@ -20,12 +20,16 @@ def load(path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@pytest.mark.parametrize("name", ["storyboard", "treatments"])
-def test_demo_fixture_matches_schema(name):
+def assert_valid(name, instance):
     schema = load(SCHEMA_DIR / f"{name}.schema.json")
     Draft202012Validator.check_schema(schema)
-    errors = sorted(Draft202012Validator(schema).iter_errors(load(DEMO / f"{name}.json")), key=str)
+    errors = sorted(Draft202012Validator(schema).iter_errors(instance), key=str)
     assert not errors, "\n".join(f"{list(e.path)}: {e.message}" for e in errors)
+
+
+@pytest.mark.parametrize("name", ["storyboard", "treatments"])
+def test_demo_fixture_matches_schema(name):
+    assert_valid(name, load(DEMO / f"{name}.json"))
 
 
 # One example per studio state file, shaped the way its single writer writes it.
@@ -87,10 +91,7 @@ STATE_EXAMPLES = {
 
 @pytest.mark.parametrize("name", sorted(STATE_EXAMPLES))
 def test_state_file_example_matches_schema(name):
-    schema = load(SCHEMA_DIR / f"{name}.schema.json")
-    Draft202012Validator.check_schema(schema)
-    errors = sorted(Draft202012Validator(schema).iter_errors(STATE_EXAMPLES[name]), key=str)
-    assert not errors, "\n".join(f"{list(e.path)}: {e.message}" for e in errors)
+    assert_valid(name, STATE_EXAMPLES[name])
 
 
 def test_gate_id_names_a_known_stage():

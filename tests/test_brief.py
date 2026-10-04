@@ -49,12 +49,16 @@ def test_derives_start_and_end_from_durations(project):
     assert "Shot 4 | 5.714–8.000s" in brief
 
 
-def test_regenerating_after_a_duration_change(project):
-    generate(project)
+def edit_storyboard(project, change):
     path = project / "storyboard.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    data["shots"][1]["duration"] = 1.0
+    change(data)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def test_regenerating_after_a_duration_change(project):
+    generate(project)
+    edit_storyboard(project, lambda data: data["shots"][1].update(duration=1.0))
     brief = generate(project)
     assert brief.splitlines()[0] == HEADER
     assert "Shot 1 | 0.000–1.786s" in brief
@@ -90,10 +94,7 @@ def test_techniques_become_text(project):
 
 
 def set_slot(project, shot, slot, value):
-    path = project / "storyboard.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-    data["shots"][shot]["techniques"][slot] = value
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    edit_storyboard(project, lambda data: data["shots"][shot]["techniques"].update({slot: value}))
 
 
 def test_misspelled_technique_path_fails_without_overwriting(project):
