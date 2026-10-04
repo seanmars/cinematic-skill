@@ -3,8 +3,9 @@
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "scripts": {
+    "dev": "node skills/cinematic-video/studio/dev.mjs --workspace playground",
     "playground": "node skills/cinematic-video/studio/init.mjs playground --link --seed fixtures/demo",
-    "test": "pnpm --filter cinematic-studio test && pnpm test:mod && uv run tests/test_schema.py && uv run tests/test_brief.py",
+    "test": "pnpm --filter cinematic-studio test && pnpm test:mod && uv run tests/test_schema.py && uv run tests/test_brief.py && uv run tests/test_render.py",
     "test:mod": "claude plugin validate skills/cinematic-video && claude plugin test skills/cinematic-video"
   }
 }
