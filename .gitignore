@@ -396,3 +396,11 @@ $RECYCLE.BIN/
 /.agents/skills/
 /skills-lock.json
 
+# Studio playground, built by `node skills/cinematic-video/studio/init.mjs playground --link`
+/playground/
+
+# Mod manifest that link mode writes into the skill source, plus the tsconfig the
+# engine lays beside it; the distributed skill must never carry them
+/skills/cinematic-video/.claude-plugin/
+/skills/cinematic-video/hooks/hooks.json
+/skills/cinematic-video/tsconfig.json
