@@ -4,7 +4,7 @@
   "packageManager": "pnpm@11.17.0",
   "scripts": {
     "playground": "node skills/cinematic-video/studio/init.mjs playground --link --seed fixtures/demo",
-    "test": "pnpm --filter cinematic-studio test && pnpm test:mod && uv run tests/test_schema.py && uv run tests/test_brief.py && uv run tests/test_render.py",
+    "test": "pnpm --filter cinematic-studio test && pnpm test:mod && uv run tests/test_schema.py && uv run tests/test_brief.py && uv run tests/test_render.py && uv run tests/test_analyze_video.py",
     "test:mod": "claude plugin validate skills/cinematic-video && claude plugin test skills/cinematic-video"
   }
 }

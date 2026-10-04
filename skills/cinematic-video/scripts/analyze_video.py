@@ -12,6 +12,7 @@ Works for reference videos and for QC of your own render.
   uv run analyze_video.py out/final.mp4 --out qa/r1 --every 0.2           # one cell per 0.2s, paged sheets
   uv run analyze_video.py out/final.mp4 --out qa/cut7 --start 6.8 --duration 0.5 --every 0.0333   # dense window
   uv run analyze_video.py ref.mp4 --out source/ref --frames 1.5 4 9.2     # also export these seconds as PNG
+  uv run analyze_video.py lab/proof.mp4 --out qa/c-logo --crop 320:360:1000:370 --every 0.1 --frames 1.2   # zoom into a region
 
 Writes <out>-sheet.png (or <out>-sheet-01.png ... with --every), <out>-info.txt, and prints the summary.
 Sheets read left-to-right, top-to-bottom. Frozen time = 10fps samples whose frame-to-frame luma
@@ -58,10 +59,14 @@ def main():
     ap.add_argument("--duration", type=float, help="window length in seconds (default: to the end)")
     ap.add_argument("--scene", type=float, default=0.3, help="cut-detection threshold (0-1)")
     ap.add_argument("--frames", type=float, nargs="*", default=[], help="seconds to export as full-size PNG")
+    ap.add_argument("--crop", metavar="W:H:X:Y", help="zoom the sheets and --frames into this region (ffmpeg crop order, source pixels)")
     ap.add_argument("--cell-width", type=int, help="width of each sheet cell; 360 = phone test")
     ap.add_argument("--frozen", action="store_true", help="report near-frozen stretches")
     ap.add_argument("--frozen-threshold", type=float, default=0.35)
     a = ap.parse_args()
+    if a.crop and not re.fullmatch(r"\d+:\d+:\d+:\d+", a.crop):
+        ap.error("--crop takes W:H:X:Y in pixels, e.g. 320:360:1000:370")
+    crop = f"crop={a.crop}," if a.crop else ""
     out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
 
     probe = json.loads(run(["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", a.video]).stdout)
@@ -80,21 +85,21 @@ def main():
         pages = math.ceil(cells / (cols * a.rows))
         width = a.cell_width or 1920 // cols
         sheet = f"{out}-sheet-%02d.png"
-        run(["ffmpeg", "-v", "error", "-y", *window, "-vf", f"fps=1/{a.every},scale={width}:-2,tile={cols}x{a.rows}", sheet])
+        run(["ffmpeg", "-v", "error", "-y", *window, "-vf", f"fps=1/{a.every},{crop}scale={width}:-2,tile={cols}x{a.rows}", sheet])
         sheet_line = f"contact sheets: {sheet} ({pages} page(s) of {cols}x{a.rows}, one cell every {a.every:g}s from {start:g}s)"
     else:
         cols = a.cols or (5 if a.cells > 12 else 4)
         rows = -(-a.cells // cols)
         width = a.cell_width or 1600 // cols
         sheet = f"{out}-sheet.png"
-        run(["ffmpeg", "-v", "error", "-y", *window, "-vf", f"fps={a.cells}/{dur},scale={width}:-2,tile={cols}x{rows}", "-frames:v", "1", sheet])
+        run(["ffmpeg", "-v", "error", "-y", *window, "-vf", f"fps={a.cells}/{dur},{crop}scale={width}:-2,tile={cols}x{rows}", "-frames:v", "1", sheet])
         sheet_line = f"contact sheet: {sheet} ({cols}x{rows}, one cell every {dur / a.cells:.2f}s from {start:g}s)"
 
     det = run(["ffmpeg", "-v", "info", *window, "-vf", f"select='gt(scene,{a.scene})',showinfo", "-an", "-f", "null", "-"])
     cuts = [round(start + float(m), 2) for m in re.findall(r"pts_time:([\d.]+)", det.stderr)]
 
     for t in a.frames:
-        run(["ffmpeg", "-v", "error", "-y", "-ss", str(t), "-i", a.video, "-frames:v", "1", f"{out}-t{t:g}.png"])
+        run(["ffmpeg", "-v", "error", "-y", "-ss", str(t), "-i", a.video, *(["-vf", f"crop={a.crop}"] if a.crop else []), "-frames:v", "1", f"{out}-t{t:g}.png"])
 
     lines = [
         f"file: {a.video}",
