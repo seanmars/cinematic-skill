@@ -1,6 +1,6 @@
 # Web studio 手動測試步驟
 
-在一個乾淨的資料夾,用真正的 Claude Code 從 Intake 一路做到 Deliver,驗證 add-web-studio 中需要人工確認的項目 (tasks.md 的 1.4、3.6、5.4、6.4、7.4、9.2),並順便確認 spec 中其他需要真實 session 的情境.
+在一個乾淨的資料夾,用真正的 Claude Code 從 Intake 一路做到 Deliver,驗證 add-web-studio 中需要人工確認的項目 (tasks.md 的 1.4、3.6、5.4、6.4、7.4、9.2、10.1、10.7),並順便確認 spec 中其他需要真實 session 的情境.
 
 整個流程大約需要 1 到 2 小時,大部分時間在等 Claude 製作.
 
@@ -39,28 +39,17 @@ uv run <repo>\skills\cinematic-video\scripts\check_env.py
 
 ```powershell
 node <repo>\skills\cinematic-video\studio\init.mjs D:\studio-test
-cd D:\studio-test
-pnpm install
 ```
 
 **預期結果**
 
-- init 印出下一步指示 (`pnpm install`、`pnpm dev`、`claude`).
-- 資料夾裡有: `.claude\skills\cinematic-video\` (skill 的完整副本)、`.claude\settings.json`、`studio.config.json`、`package.json`、`.gitignore`、`video\`.
+- init 印出下一步指示 (`cd`、`claude`、`/studio start`),沒有 `pnpm install` 或 `pnpm dev`.
+- 資料夾裡有: `.claude\skills\cinematic-video\` (skill 的完整副本)、`.claude\settings.json`、`studio.config.json`、`package.json` (只有依賴,沒有 `scripts`)、`.gitignore`、`video\`.
 - `.claude\skills\cinematic-video\.claude-plugin\plugin.json` 和 `.claude\skills\cinematic-video\hooks\hooks.json` 存在 (這是讓 Claude Code 載入 mod 的 manifest).
 
-## 2. 啟動 studio 與 Claude Code
+## 2. 啟動 Claude Code 與 studio (10.1、10.7)
 
-**Terminal A** (studio):
-
-```powershell
-cd D:\studio-test
-pnpm dev
-```
-
-用瀏覽器開啟它印出的網址 (通常是 http://127.0.0.1:5173;5173 被佔用時會自動換下一個 port).
-
-**Terminal B** (Claude Code):
+只需要一個 terminal,以下稱為 **Terminal A**:
 
 ```powershell
 cd D:\studio-test
@@ -71,11 +60,19 @@ claude
 
 **預期結果**
 
-- [ ] Claude Code 的 status line 出現 `studio xxxxxx` (6 碼短 id).
+- [ ] Claude Code 的 status line 出現 `studio xxxxxx · not running` (6 碼短 id).
+
+接著在 Claude Code 輸入 `/studio start`.第一次會先安裝 studio 的依賴,需要一點時間.
+
+**預期結果**
+
+- [ ] 指令回報 `The studio is running at http://127.0.0.1:5173/ (opened in your browser)`,瀏覽器自動開啟這個網址 (5173 被佔用時會自動換下一個 port).
+- [ ] status line 變成 `studio xxxxxx · http://127.0.0.1:5173/`.
+- [ ] 資料夾裡多了 `node_modules\` (含 `vite`),以及 `node_modules\.cinematic-studio\server.json`.
 - [ ] 網頁右上角出現同一個短 id,顯示「下午 xx:xx 啟動 · 閒置」,左邊的點是綠色.
 - [ ] 網頁左側專案列表是空的,顯示「還沒有專案」的說明.
 
-如果 status line 沒有出現短 id,先看最後的「疑難排解」.
+如果 status line 沒有出現短 id,或是沒有 `/studio` 指令,先看最後的「疑難排解」.
 
 ## 3. Intake (9.2、2.x)
 
@@ -92,7 +89,7 @@ claude
 
 - [ ] 左側出現新專案 (`a-paper-plane-folds`),中間顯示「已送出的 Intake」.
 - [ ] 右側 Session 區塊顯示「由 xxxxxx 處理 · 線上」.
-- [ ] 幾秒內,Terminal B 的 Claude 收到 `[studio project a-paper-plane-folds] ...` 訊息並開始 Intake.
+- [ ] 幾秒內,Terminal A 的 Claude 收到 `[studio project a-paper-plane-folds] ...` 訊息並開始 Intake.
 - [ ] 右側「活動」開始出現 Claude 的工具呼叫 (進行中的會有閃爍的藍點).
 - [ ] Claude 結束 Intake 時開啟 gate: 左側階段列表的 Intake 變成黃點,中間出現「Claude 的追問」,每題的灰色文字是預設值.
 
@@ -104,7 +101,7 @@ claude
 **預期結果**
 
 - [ ] 網頁狀態變成「已回覆, 等待 Claude 接手」,所有欄位變成唯讀.
-- [ ] **2 到 3 秒內**,Terminal B 出現 `[studio gate 001-intake] ...` 訊息,Claude 開始工作.網頁狀態變成「Claude 工作中」.
+- [ ] **2 到 3 秒內**,Terminal A 出現 `[studio gate 001-intake] ...` 訊息,Claude 開始工作.網頁狀態變成「Claude 工作中」.
 - [ ] Claude 的回應有採用你填的答案,留空的題目用預設值.
 
 ## 5. Treatments 混搭 (7.4、spec「Treatments 混搭」)
@@ -132,7 +129,8 @@ Claude 寫好三個方案和 style frame 後會開啟 Treatments gate.
 
 **檢查面板**
 
-- [ ] 中間上方出現預覽 (如果 Claude 已經寫了 `index.html`)、播放頭和時間軸;時間軸的鏡頭寬度依時長排列.
+- [ ] 中間上方出現預覽區、播放頭和時間軸;時間軸的鏡頭寬度依時長排列.
+- [ ] 還沒有 `index.html` 時 (從 Treatments 回覆後、Claude 寫出 storyboard.json 起,一直到 Build),預覽區顯示「還沒有畫面: Claude 在 Build 階段寫出 index.html 後, 預覽會自動出現.」,不會出現「正在載入預覽…」或「頁面一直沒有準備好」;到了 Build,不用重新整理網頁就會換成預覽.
 - [ ] 中間下方是「分鏡 gate」與 storyboard critic 報告.
 - [ ] 中間最上方沒有出現紅色的「Claude 可能跳過了...」警告.
 
@@ -230,7 +228,7 @@ Claude 製作鏡頭時,不需要操作,只要觀察:
 
 ### Claude 等待授權
 
-當 Terminal B 出現權限提示時 (例如 Claude 要執行沒有預先允許的指令):
+當 Terminal A 出現權限提示時 (例如 Claude 要執行沒有預先允許的指令):
 
 - [ ] 網頁右上角該 session 變成黃點,顯示「在 terminal 等你授權」.
 - [ ] 右側 Session 區塊顯示「Claude 正在 terminal 等你授權: ...」.
@@ -238,14 +236,43 @@ Claude 製作鏡頭時,不需要操作,只要觀察:
 
 ### 持有者離線、重新指派與手動解鎖
 
-1. 在 Terminal B 結束 Claude Code (`/exit`).
+先開第二個 session 再結束第一個:最後一個 session 離開時 studio 會跟著停止.
+
+1. 開一個新的 Terminal B,在同一個資料夾執行 `claude`.
+   - [ ] 網頁出現新的短 id;Terminal B 的 status line 顯示同一個 studio 網址.
+2. 在 Terminal A 結束 Claude Code (`/exit`).
+   - [ ] studio 繼續執行 (Terminal B 的 session 還在線上).
    - [ ] 網頁上該 session 不再顯示為線上;專案顯示「由 xxxxxx 處理 · 離線」與說明.
-2. 開一個新的 Terminal C,在同一個資料夾執行 `claude`.
-   - [ ] 網頁出現新的短 id.
 3. 在專案右側選新的 session,按「交給這個 session 接手」.
    - [ ] 新的 Claude 收到 `[studio project ...] ... Continue from gate ...`,從目前的 gate 接續.
-4. (選做) 再結束一次 Claude,改按「手動解鎖」.
+4. (選做) 在 Terminal A 再開一次 `claude`,然後在 Terminal B 結束 Claude,改按「手動解鎖」.
    - [ ] 專案顯示「還沒有指派給任何 session」,可以再指派給之後開啟的 session.
+
+### studio 的啟動與停止 (10.1、10.7)
+
+在 Terminal A 與 Terminal B 都開著 `claude` 時:
+
+1. 在 Terminal A 再執行一次 `/studio start`.
+   - [ ] 回報 `The studio is already running at ...`,瀏覽器沒有再開一次.
+2. 輸入 `/studio`.
+   - [ ] 回報 studio 正在執行與網址.
+3. 在 Terminal A 執行 `/studio stop`.
+   - [ ] 被拒絕,訊息列出 Terminal B 的短 id,並說明要加 `--force`.
+4. 在 Terminal A 執行 `/studio stop --force`.
+   - [ ] 回報 `The studio at ... is stopped.`,網頁斷線.
+   - [ ] 兩個 terminal 的 status line 在幾秒內都變成 `· not running`.
+5. 在 Terminal B 執行 `/studio start`,然後在 Terminal A 執行 `/clear`.
+   - [ ] studio 繼續執行,網頁正常.
+6. 在 Terminal A `/exit`.
+   - [ ] studio 繼續執行 (Terminal B 還在).
+7. studio 執行中、Claude 正要開下一個 gate 前,在 Terminal B 執行 `/studio stop` (這時只剩它一個 session).
+   - [ ] Claude 開 gate 後,在回覆中提醒你執行 `/studio start`.
+8. 在 Terminal B `/exit` (最後一個 session).
+   - [ ] 網頁斷線;`node_modules\.cinematic-studio\server.json` 記錄的 pid 已經不存在 (`Get-Process -Id <pid>` 找不到).
+
+(選做) link 模式還沒安裝依賴:用 `git worktree add` 建立一份沒有 `node_modules` 的 repo,在它底下執行 `node skills\cinematic-video\studio\init.mjs <新資料夾> --link`,在新資料夾開 `claude`,執行 `/studio start`.
+
+- [ ] 回報 studio 沒有啟動,並提示到 repo 執行 `pnpm install`;repo 沒有被安裝任何東西.
 
 ### 多個 session
 
@@ -287,7 +314,7 @@ Claude 製作鏡頭時,不需要操作,只要觀察:
 - `video\<slug>\studio\gates\<gateId>.json` 與 `video\<slug>\studio\replies\<gateId>.json`
 - `node_modules\.cinematic-studio\assignments\<slug>.json`
 - `node_modules\.cinematic-studio\sessions\<sessionId>.json`
-- 網頁截圖,以及 Terminal B 中 Claude 收到的喚醒訊息
+- 網頁截圖,以及 Terminal A 中 Claude 收到的喚醒訊息
 
 ## 疑難排解
 
@@ -297,10 +324,12 @@ Claude 製作鏡頭時,不需要操作,只要觀察:
 | 網頁看不到 session | `node_modules\.cinematic-studio\sessions\` 底下是否有該 session 的檔案,`heartbeatAt` 是否每 5 秒更新 |
 | 回覆後 Claude 沒有被喚醒 | `replies\<gateId>.json` 是否存在;`assignments\<slug>.json` 的 `sessionId` 是否是目前的 session;gate 檔是否已經有 `deliveredAt` (有就代表已送出過) |
 | 預覽顯示「頁面一直沒有準備好」 | 頁面是否定義了 `window.render`;如果有設 `window.ready = false`,載入完成後是否改成 `true` |
-| `pnpm dev` 顯示 port 被佔用 | 直接使用它印出的新網址 |
+| 沒有 `/studio` 指令 | 同上: mod 沒有載入 |
+| `/studio start` 失敗 | 看它回報的訊息;studio 的完整輸出在 `node_modules\.cinematic-studio\studio.log` |
+| 網址不是 5173 | 5173 被佔用時會自動換下一個 port,以 `/studio start` 回報與 status line 上的網址為準 |
 | Claude 每一步都要授權 | `.claude\settings.json` 的 `permissions.allow` 是否包含 `mcp__cinematic-video__*` 與 `Bash(uv run .claude/skills/cinematic-video/scripts/*)` |
 
 ## 測試結束後
 
-- 在 Terminal A 按 Ctrl+C 停止 studio,在 Terminal B 輸入 `/exit`.
+- 在每個還開著的 `claude` 輸入 `/exit`;最後一個離開時 studio 會自動停止.
 - 整個 `D:\studio-test` 可以直接刪除,它和 repo 沒有關聯.
