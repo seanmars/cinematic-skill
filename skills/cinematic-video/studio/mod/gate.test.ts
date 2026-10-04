@@ -1,0 +1,110 @@
+import { expect, test } from 'claude-code/testing'
+import { type FakeEngine, START, WORKSPACE, fakeEngine, startSession } from './fake-engine'
+
+const SLUG = 'lunelle-promo'
+const GATES = `video/${SLUG}/studio/gates`
+const REPLIES = `video/${SLUG}/studio/replies`
+const OPEN_GATE = 'mcp__cinematic-video__open_gate'
+const REPLY = { decision: 'approve', notes: 'tighten shot 3', changes: ['shots[2].duration'] }
+const EARLIER = '2026-10-04T04:00:00.000Z'
+
+function studioWorkspace(engine: FakeEngine) {
+  engine.writeJson('studio.config.json', { skillVersion: '0.1.0' })
+  engine.writeJson(`node_modules/.cinematic-studio/assignments/${SLUG}.json`, {
+    slug: SLUG,
+    sessionId: 'session-a',
+    assignedAt: EARLIER,
+    reason: 'intake',
+  })
+}
+
+function gateFile(engine: FakeEngine, gateId: string, extra: Record<string, unknown> = {}) {
+  engine.writeJson(`${GATES}/${gateId}.json`, {
+    gateId,
+    stage: gateId.slice(4),
+    openedAt: EARLIER,
+    autoContinue: false,
+    payload: {},
+    ...extra,
+  })
+}
+
+test('一般 gate: writes the next gate file and tells Claude to end the turn', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  gateFile(engine, '001-intake', { deliveredAt: EARLIER })
+  gateFile(engine, '002-treatments', { deliveredAt: EARLIER })
+  await startSession($)
+
+  const answer = await $.tool.call({ tool: OPEN_GATE, project: SLUG, stage: 'storyboard', payload: { shots: 12 } })
+
+  expect(engine.readJson(`${GATES}/003-storyboard.json`)).toEqual({
+    gateId: '003-storyboard',
+    stage: 'storyboard',
+    openedAt: new Date(START).toISOString(),
+    autoContinue: false,
+    payload: { shots: 12 },
+  })
+  expect(String(answer.result)).toMatch(/end your turn/i)
+  expect(engine.submitted).toEqual([])
+})
+
+test('auto-continue 的 gate: still writes the gate and answers approved', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  engine.writeJson(`video/${SLUG}/studio/settings.json`, { autoContinue: ['audio'] })
+  await startSession($)
+
+  const answer = await $.tool.call({ tool: OPEN_GATE, project: SLUG, stage: 'audio', payload: {} })
+
+  expect(engine.readJson(`${GATES}/001-audio.json`)).toMatchObject({ gateId: '001-audio', autoContinue: true })
+  expect(String(answer.result)).toMatch(/approved/i)
+  expect(String(answer.result)).not.toMatch(/end your turn/i)
+})
+
+test('回覆檔出現: wakes Claude once and records deliveredAt', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  gateFile(engine, '003-storyboard')
+  await startSession($)
+
+  engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
+  await engine.clock.advance(2000)
+
+  expect(engine.submitted).toHaveLength(1)
+  const prompt = engine.submitted[0]!
+  expect(prompt.startsWith('[studio gate 003-storyboard]')).toBe(true)
+  for (const part of [SLUG, 'approve', 'tighten shot 3', 'shots[2].duration']) expect(prompt).toContain(part)
+  expect(engine.readJson(`${GATES}/003-storyboard.json`).deliveredAt).toBe(new Date(START + 2000).toISOString())
+
+  await engine.clock.advance(6000)
+  expect(engine.submitted).toHaveLength(1)
+})
+
+test('清除暫存資料後重新開啟 session: a delivered reply is never sent again', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  gateFile(engine, '003-storyboard', { deliveredAt: EARLIER })
+  engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
+
+  await startSession($)
+  await engine.clock.advance(6000)
+
+  expect(engine.submitted).toEqual([])
+})
+
+test('讀到寫一半的回覆檔: skips it and delivers on a later poll', async ($, on) => {
+  const engine = fakeEngine(on)
+  studioWorkspace(engine)
+  gateFile(engine, '003-storyboard')
+  await startSession($)
+
+  engine.files.set(`${WORKSPACE}/${REPLIES}/003-storyboard.json`, '{ "decision": "appro')
+  await engine.clock.advance(2000)
+  expect(engine.submitted).toEqual([])
+  expect(engine.readJson(`${GATES}/003-storyboard.json`).deliveredAt).toBeUndefined()
+
+  engine.writeJson(`${REPLIES}/003-storyboard.json`, REPLY)
+  await engine.clock.advance(2000)
+  expect(engine.submitted).toHaveLength(1)
+})
