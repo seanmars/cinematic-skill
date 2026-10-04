@@ -21,6 +21,38 @@ Add `-g` to install globally, or `--agent claude-code` to target a specific agen
 
 Ask Claude to make a video, e.g. "make a 30s launch film for my app".
 
+## Web studio
+
+The skill also ships a web studio: Claude stops at a gate after every stage, and you review it in the browser (treatments, storyboard with a `render(t)` preview and timeline, builds, audio, Gauntlet rounds, delivery), edit shots, then send Claude on.
+
+Extra requirements:
+
+- Node.js 22.12 or later, and pnpm (npm works too)
+- A Claude Code version that loads plugin mods (function hooks)
+
+Create a workspace with the skill copied into it, then start the studio and Claude Code there:
+
+```bash
+node <skill>/studio/init.mjs my-studio
+cd my-studio
+pnpm install
+pnpm dev        # the studio, at http://127.0.0.1:5173
+claude          # in a second terminal; accept the workspace trust prompt
+```
+
+`<skill>` is where `npx skills add` put the skill (for example `~/.claude/skills/cinematic-video`). Start a project from the studio's **New project** form; with one Claude Code session open it is assigned to that session, with several you pick one. Without the studio, the skill keeps working as before (one approval gate, in the chat).
+
+## Developing this repo
+
+```bash
+pnpm install
+pnpm playground   # once: a playground/ workspace linked to skills/, seeded with fixtures/demo
+pnpm dev          # the studio on playground/
+pnpm test         # studio (vitest), mod (claude plugin test), scripts (pytest via uv)
+```
+
+Open `claude` inside `playground/` to drive it; edits to `skills/cinematic-video` take effect there without another init.
+
 ## License
 
 MIT
