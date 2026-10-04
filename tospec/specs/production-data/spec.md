@@ -1,11 +1,12 @@
-## Purpose
+# production-data Specification
 
+## Purpose
 定義 CLI 與 web 兩種模式共用的專案資料格式與產生規則,讓同一個影片專案能在 terminal 與 studio 之間無損切換.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: storyboard.json 是兩種模式共用的 SSOT
-不論 CLI 或 web 模式,skill SHALL 把分鏡與 brief 內容寫入專案的 storyboard.json,並以它作為唯一的資料來源;每顆鏡頭 SHALL 包含 id、順序、時長、四個主技巧欄位 (鏡頭大小、角度、運鏡、轉場,可留空)、其他技巧標籤、素材引用,以及自由文字 (Picture、Job、Action、Camera、Audio、Transition);技巧欄位的值 SHALL 引用技巧庫或專案自訂技巧中的技巧檔.鏡頭的起訖時間 SHALL 由順序與時長推算,不另外儲存.
+不論 CLI 或 web 模式,skill SHALL 把分鏡與 brief 內容寫入專案的 storyboard.json,並以它作為唯一的資料來源;每顆鏡頭 SHALL 包含 id、時長、四個主技巧欄位 (鏡頭大小、角度、運鏡、轉場,可留空)、其他技巧標籤、素材引用,以及必填的自由文字 Picture 與 Job;Action、Camera、Audio、Transition 是選填的自由文字.技巧欄位的值 SHALL 引用技巧庫或專案自訂技巧中的技巧檔.鏡頭的順序 SHALL 是陣列中的順序,起訖時間 SHALL 由順序與時長推算,不另外儲存.
 
 #### Scenario: CLI 模式完成分鏡
 - **WHEN** 使用者在 CLI 模式完成 Brief 階段
@@ -35,11 +36,12 @@
 - **THEN** Claude 先詢問使用者並討論做法,之後才寫入自訂技巧檔,來源標為使用者
 
 ### Requirement: Treatments 寫入 treatments.json
-兩種模式下,skill SHALL 把三個 treatment 寫入專案的 treatments.json,欄位對應 treatment 範本 (標題、logline、Look 與色票、規格、stack、shot breakdown、signature moves、audio、估時與風險、why it fits、style frame 路徑,以及選填的 motion test 路徑);選定後,選定內容 SHALL 寫入 storyboard.json,沒選的方案 SHALL 保留在 treatments.json 作為紀錄.
+兩種模式下,skill SHALL 把三個 treatment 寫入專案的 treatments.json,欄位對應 treatment 範本 (標題、logline、Look 的描述、色票與字體、規格、stack、商業片的 CTA、shot breakdown、signature moves、audio、估時與風險、why it fits、style frame 路徑,以及選填的 motion test 路徑);核准後,treatments.json SHALL 記錄選定的方案,有混用其他方案的元素或修改備註時一併記錄;選定內容 SHALL 寫入 storyboard.json,沒選的方案 SHALL 保留在 treatments.json 作為紀錄.
 
 #### Scenario: 選定方案 B
 - **WHEN** 使用者選定方案 B
 - **THEN** storyboard.json 的 brief 內容來自方案 B,treatments.json 仍保留 A、B、C 三個方案
+- **AND** treatments.json 記錄選定的是方案 B
 
 ### Requirement: brief.md 由 storyboard.json 產生
 brief.md SHALL 由 uv script 從 storyboard.json 產生,結構符合 brief 範本,鏡頭時間以推算出的絕對時間呈現,技巧欄位轉成文字;檔案開頭 SHALL 標明是從 storyboard.json 自動產生,手動修改會被覆蓋.Claude SHALL 只修改 storyboard.json,再重新產生 brief.md.brief.py SHALL 依序在技巧庫與專案自訂技巧中尋找引用的技巧檔;任何一個都找不到時,SHALL 列出所有找不到的路徑並以失敗結束,不寫入 brief.md.
@@ -70,8 +72,8 @@ skill SHALL 把 SFX plan 放在專案 audio 目錄下的 plan.json;混音時 SHA
 - **THEN** 混音使用 audio 目錄下的 plan.json,並找到音效目錄中的音效檔
 
 ### Requirement: CLI 模式的 approval gate 維持不變
-CLI 模式 SHALL 維持只有 Treatments 一個 approval gate 的流程;本 change 對 CLI 模式的影響 SHALL 只限於改寫 treatments.json、storyboard.json 與產生 brief.md.
+CLI 模式 SHALL 維持只有 Treatments 一個 approval gate 的流程;核准之後,Claude SHALL 只在需要技巧庫與網路都查不到的技巧時詢問使用者.本 change 對 CLI 模式的影響 SHALL 只限於寫入 treatments.json、storyboard.json 與專案自訂技巧檔、產生 brief.md,以及 SFX plan 與音效檔的位置.
 
 #### Scenario: CLI 模式核准方案後
 - **WHEN** 使用者在 CLI 模式核准 treatment
-- **THEN** Claude 自主完成後續所有階段,不在每個階段停下來詢問
+- **THEN** Claude 自主完成後續所有階段,不在每個階段停下來詢問;唯一的例外是技巧庫與網路都查不到的技巧
