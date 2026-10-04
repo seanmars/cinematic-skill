@@ -38,7 +38,28 @@ STATE_EXAMPLES = {
         "payload": {"summary": "12 shots, 30s"},
         "deliveredAt": "2026-10-04T05:10:00.000Z",
     },
-    "reply": {"decision": "approve", "notes": "", "changes": ["shots[2].duration"]},
+    "reply": {
+        "decision": "mix",
+        "notes": "Warmer grade than A.",
+        "changes": ["shots[s3].duration"],
+        "choice": {"id": "A", "mix": [{"option": "C", "element": "structure"}]},
+    },
+    "progress": {
+        "shots": {
+            "s1": {"status": "done", "stills": ["qa/stills/s1-0.9.png"]},
+            "s2": {"status": "building", "stills": []},
+        }
+    },
+    "settings": {"autoContinue": ["audio", "gauntlet"]},
+    "intake": {
+        "slug": "a-kettle-that-sings",
+        "submittedAt": "2026-10-04T05:00:00.000Z",
+        "brief": "A kettle that sings the morning news",
+        "specs": "15s, 1080x1920, 30fps",
+        "profile": None,
+        "brand": "D:/brand/kettle",
+        "assets": ["D:/assets/kettle.png"],
+    },
     "assignment": {
         "slug": "lunelle-promo",
         "sessionId": "baf24fd7-416c-4f59-806f-d89f9bf237db",
@@ -52,6 +73,14 @@ STATE_EXAMPLES = {
         "heartbeatAt": "2026-10-04T05:00:05.000Z",
         "online": True,
         "project": None,
+        "activity": [
+            {
+                "tool": "Agent",
+                "summary": "storyboard critic",
+                "startedAt": "2026-10-04T05:00:01.000Z",
+                "endedAt": None,
+            }
+        ],
     },
 }
 
