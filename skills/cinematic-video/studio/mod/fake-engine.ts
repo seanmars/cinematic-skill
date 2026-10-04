@@ -1,4 +1,4 @@
-import type { FsEntry, On } from 'claude-code'
+import type { FsEntry, On, ProcessRunResult } from 'claude-code'
 import { type MockClock, mock } from 'claude-code/testing'
 
 // Answers, from memory, every call the studio mod makes on `$`: under
@@ -23,11 +23,25 @@ export type FakeEngine = {
   assign: (slug: string, sessionId: string, reason?: string) => void
   openGate: (slug: string, gateId: string, extra?: Record<string, unknown>) => void
   reply: (slug: string, gateId: string, decision?: string) => void
+  // A studio serving the workspace (D12): its server.json, and its answer to
+  // GET /api/studio. stopServing leaves server.json behind, as a studio killed
+  // outright does.
+  serveStudio: (url?: string, pid?: number) => void
+  stopServing: () => void
+  // Another session's file, online unless given an older heartbeat.
+  writeSession: (sessionId: string, heartbeatAt?: string) => void
+  // What $.process.run answers; every argv it was handed, in order.
+  onProcess: (answer: (argv: readonly string[]) => ProcessRunResult) => void
+  processes: (readonly string[])[]
+  commands: string[]
   submitted: string[]
   tools: string[]
   status: (string | undefined)[]
   clock: MockClock
 }
+
+export const STUDIO_URL = 'http://127.0.0.1:5173/'
+export const STUDIO_PID = 4242
 
 // Paths reach the fs hooks native and absolute: '/ws/x' arrives as 'C:\ws\x'
 // on Windows.
@@ -55,6 +69,10 @@ export function fakeEngine(on: On, { sessionId = 'session-a' } = {}): FakeEngine
   const submitted: string[] = []
   const tools: string[] = []
   const status: (string | undefined)[] = []
+  const commands: string[] = []
+  const processes: (readonly string[])[] = []
+  const studios = new Map<string, number>()
+  let answerProcess = (argv: readonly string[]): ProcessRunResult => ({ exitCode: 0, stdout: '', stderr: '' })
 
   on('fs.read', ($, e) => {
     const text = files.get(normalize(e.path))
@@ -88,6 +106,20 @@ export function fakeEngine(on: On, { sessionId = 'session-a' } = {}): FakeEngine
     submitted.push(e.text)
     return { text: e.text }
   })
+  on('command.register', ($, e) => {
+    commands.push(e.name)
+    return { value: { command: e.name } }
+  })
+  on('process.run', ($, e) => {
+    processes.push(e.argv)
+    return { value: answerProcess(e.argv) }
+  })
+  on('http.fetch', ($, e) => {
+    const url = new URL(e.url)
+    const pid = studios.get(`${url.origin}/`)
+    if (pid === undefined || url.pathname !== '/api/studio') return { deny: `ECONNREFUSED ${e.url}` }
+    return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify({ pid, workspace: WORKSPACE }) } }
+  })
   const clock = mock.clock(on, { now: START })
   const writeJson = (file: string, value: unknown) => files.set(inWorkspace(file), JSON.stringify(value))
 
@@ -112,6 +144,26 @@ export function fakeEngine(on: On, { sessionId = 'session-a' } = {}): FakeEngine
       }),
     reply: (slug, gateId, decision = 'approve') =>
       writeJson(`video/${slug}/studio/replies/${gateId}.json`, { decision, notes: '', changes: [] }),
+    serveStudio: (url = STUDIO_URL, pid = STUDIO_PID) => {
+      writeJson('node_modules/.cinematic-studio/server.json', { pid, url, workspace: WORKSPACE, startedAt: EARLIER })
+      studios.set(url, pid)
+    },
+    stopServing: () => studios.clear(),
+    writeSession: (sessionId, heartbeatAt = iso(START)) =>
+      writeJson(`node_modules/.cinematic-studio/sessions/${sessionId}.json`, {
+        sessionId,
+        shortId: sessionId.slice(0, 6),
+        startedAt: EARLIER,
+        heartbeatAt,
+        online: true,
+        project: null,
+        activity: [],
+      }),
+    onProcess: answer => {
+      answerProcess = answer
+    },
+    processes,
+    commands,
     submitted,
     tools,
     status,

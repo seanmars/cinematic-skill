@@ -22,6 +22,21 @@ const ACTIVITY_LIMIT = 50
 const STAGES = ['intake', 'treatments', 'storyboard', 'assets', 'build-animatic', 'build-polish', 'audio', 'gauntlet', 'deliver']
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
+// /studio (D12): the launcher and the stop script beside this mod, run with
+// Node. An install on the first start can take minutes.
+const STUDIO_COMMAND = 'studio'
+const SKILL_STUDIO = '.claude/skills/cinematic-video/studio'
+const LAUNCH_TIMEOUT_MS = 600_000
+const STATUS_MS = 2000
+// The studio's own rule (server/sessions.mjs): three missed heartbeats and a
+// session counts as gone.
+const OFFLINE_AFTER_MS = 15_000
+// The person left, logged out, or the process got a signal. A /clear or a
+// resume goes on in the same process, so the studio stays.
+const STOP_ON_END = ['prompt_input_exit', 'logout', 'other']
+const STUDIO_USAGE = 'Usage: /studio start | stop [--force] | status'
+const STUDIO_NOT_RUNNING = 'The studio is not running: tell the user to run /studio start to answer this gate.'
+
 // The skill's render.py and what follows it up to the next shell separator.
 const RENDER_CALL = /cinematic-video[\\/]scripts[\\/]render\.py\s+(.*?)(?:&&|\|\||;|\||$)/
 const VIDEO_OUT = /(^|[\\/])out[\\/].+\.(mp4|mov|webm|mkv)$/i
@@ -102,6 +117,9 @@ type ToolCall = { tool: string; command?: unknown; description?: unknown }
 
 type RenderCall = { output: string | undefined; isStillOrSeek: boolean; start: number; duration: number }
 
+// What the studio writes in server.json once it listens (D12).
+type Server = { pid: number; url: string }
+
 // prompt.submit resolves only once the session is idle, so a poll can outlast
 // the interval; overlapping polls would send the same reply twice.
 let isPolling = false
@@ -111,6 +129,11 @@ let session: Session | undefined
 // A heartbeat that fires after session.end must not bring the session back
 // online.
 let endedSessionId: string | undefined
+
+// The status line as last shown, so a refresh that finds nothing new leaves
+// it alone; a refresh still waiting on the studio is not overlapped.
+let statusText: string | undefined
+let isRefreshing = false
 
 function toJson(value: unknown) {
   return `${JSON.stringify(value, null, 2)}\n`
@@ -156,17 +179,19 @@ async function openGate($: EngineInterface, input: GateInput) {
   if (typeof project !== 'string' || !SLUG.test(project)) return { deny: `${PLUGIN}: project must be a slug under video/` }
   if (typeof stage !== 'string' || !STAGES.includes(stage)) return { deny: `${PLUGIN}: stage must be one of ${STAGES.join(', ')}` }
 
-  const studio = `${await $.session.root()}/video/${project}/studio`
+  const root = await $.session.root()
+  const studio = `${root}/video/${project}/studio`
   const autoContinue = await isAutoContinue($, studio, stage)
   const gateId = `${String(await nextGateNumber($, studio)).padStart(3, '0')}-${stage}`
   const gate: Gate = { gateId, stage, openedAt: await now($), autoContinue, payload: (payload ?? {}) as Gate['payload'] }
   await $.fs.write(`${studio}/gates/${gateId}.json`, toJson(gate))
 
+  if (autoContinue) return { result: `Gate ${gateId} is approved: ${stage} is set to auto-continue. Go on to the next stage.` }
+  const reminder = (await servingStudio($, root)) === undefined ? ` ${STUDIO_NOT_RUNNING}` : ''
   return {
-    result: autoContinue
-      ? `Gate ${gateId} is approved: ${stage} is set to auto-continue. Go on to the next stage.`
-      : `Gate ${gateId} is open in the studio. End your turn now and wait; do not start the next stage. ` +
-        `The user's reply arrives as a new message starting with [studio gate ${gateId}].`,
+    result:
+      `Gate ${gateId} is open in the studio. End your turn now and wait; do not start the next stage. ` +
+      `The user's reply arrives as a new message starting with [studio gate ${gateId}].${reminder}`,
   }
 }
 
@@ -368,6 +393,104 @@ async function poll($: EngineInterface) {
   }
 }
 
+// server.json names the studio last started here; it still serves the
+// workspace only while the process answering at its URL is that same one
+// (D12), the check start.mjs and stop.mjs make too.
+async function servingStudio($: EngineInterface, root: string): Promise<Server | undefined> {
+  const server = await readJson($, `${root}/${STATE_DIR}/server.json`)
+  if (typeof server?.url !== 'string') return undefined
+  try {
+    const response = await $.http.fetch(`${server.url.replace(/\/$/, '')}/api/studio`)
+    return JSON.parse(response.text).pid === server.pid ? server : undefined
+  } catch {
+    return undefined
+  }
+}
+
+// The short ids of the other sessions here that are online by the studio's
+// own rule; a crashed one stops counting once its heartbeat is stale.
+async function otherOnlineSessions($: EngineInterface, root: string) {
+  const sessionId = await $.session.id()
+  const nowMs = await $.clock.now()
+  const dir = `${root}/${STATE_DIR}/sessions`
+  const shortIds: string[] = []
+  for (const name of await jsonFiles($, dir)) {
+    const other: Session | undefined = await readJson($, `${dir}/${name}`)
+    if (other === undefined || other.sessionId === sessionId || other.online !== true) continue
+    if (nowMs - Date.parse(other.heartbeatAt) < OFFLINE_AFTER_MS) shortIds.push(other.shortId)
+  }
+  return shortIds
+}
+
+function runStudioScript($: EngineInterface, root: string, script: string, timeoutMs?: number) {
+  return $.process.run(['node', `${root}/${SKILL_STUDIO}/${script}`, '--workspace', root], { timeoutMs })
+}
+
+async function refreshStatus($: EngineInterface, root: string) {
+  if (session === undefined || isRefreshing) return
+  isRefreshing = true
+  try {
+    const server = await servingStudio($, root)
+    const text = `studio ${session.shortId} · ${server?.url ?? 'not running'}`
+    if (text !== statusText) {
+      statusText = text
+      $.ui.status(text)
+    }
+  } finally {
+    isRefreshing = false
+  }
+}
+
+async function startStudio($: EngineInterface, root: string) {
+  try {
+    const result = await runStudioScript($, root, 'start.mjs', LAUNCH_TIMEOUT_MS)
+    if (result.exitCode !== 0) return `The studio did not start.\n${result.stderr.trim()}`
+    const { status, url, opened } = JSON.parse(result.stdout)
+    if (status === 'running') return `The studio is already running at ${url}`
+    return `The studio is running at ${url}${opened ? ' (opened in your browser)' : ''}`
+  } catch (error) {
+    return `The studio did not start: ${error instanceof Error ? error.message : String(error)}`
+  }
+}
+
+async function stopStudio($: EngineInterface, root: string, isForced: boolean) {
+  const server = await servingStudio($, root)
+  if (server === undefined) return 'The studio is not running.'
+  const others = await otherOnlineSessions($, root)
+  if (others.length > 0 && !isForced) {
+    return (
+      `Sessions ${others.join(', ')} are still online here and may be using the studio at ${server.url}. ` +
+      'Run /studio stop --force to stop it anyway.'
+    )
+  }
+  const result = await runStudioScript($, root, 'stop.mjs')
+  return result.exitCode === 0 ? `The studio at ${server.url} is stopped.` : `The studio could not be stopped.\n${result.stderr.trim()}`
+}
+
+async function studioStatus($: EngineInterface, root: string) {
+  const server = await servingStudio($, root)
+  return server === undefined ? 'The studio is not running. Start it with /studio start.' : `The studio is running at ${server.url}`
+}
+
+async function runStudioCommand($: EngineInterface, args: string) {
+  const root = await $.session.root()
+  const [action = 'status', ...flags] = args.trim().split(/\s+/).filter(Boolean)
+  let text = STUDIO_USAGE
+  if (action === 'start') text = await startStudio($, root)
+  else if (action === 'stop') text = await stopStudio($, root, flags.includes('--force'))
+  else if (action === 'status') text = await studioStatus($, root)
+  await refreshStatus($, root)
+  return { text }
+}
+
+// The last session out stops the studio. Whether it still serves is the stop
+// script's to check: one process fits the end's short budget.
+async function stopIfLast($: EngineInterface, root: string) {
+  if (!(await $.fs.exists(`${root}/${STATE_DIR}/server.json`))) return
+  if ((await otherOnlineSessions($, root)).length > 0) return
+  await runStudioScript($, root, 'stop.mjs')
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     // Web mode only where init left its marker, even if a manifest ever
@@ -377,7 +500,12 @@ export const register: Register = on => {
 
     session = await openSession($, root, await $.session.id())
     await writeSession($, root, session)
-    $.ui.status(`studio ${session.shortId}`)
+    await refreshStatus($, root)
+    await $.command.register({
+      name: STUDIO_COMMAND,
+      description: 'Start, stop or check the web studio of this workspace.',
+      argumentHint: 'start|stop [--force]|status',
+    })
 
     await $.tool.register({
       name: OPEN_GATE,
@@ -402,16 +530,26 @@ export const register: Register = on => {
     $.clock.every(HEARTBEAT_MS, () => {
       void heartbeat($, root)
     })
+    // Apart from the poll, which can wait on a busy session: the line follows
+    // a studio another session starts or stops.
+    $.clock.every(STATUS_MS, () => {
+      void refreshStatus($, root)
+    })
     return next(e)
   })
 
   on('session.end', async ($, e, next) => {
     if (session?.sessionId === e.sessionId) {
       endedSessionId = e.sessionId
-      await writeSession($, await $.session.root(), { ...session, heartbeatAt: await now($), online: false })
+      const root = await $.session.root()
+      await writeSession($, root, { ...session, heartbeatAt: await now($), online: false })
+      if (STOP_ON_END.includes(e.reason)) await stopIfLast($, root)
     }
     return next(e)
   })
+
+  // A run with nothing after the name may come with no args at all.
+  on('command.run', { command: STUDIO_COMMAND }, ($, e, next) => (session === undefined ? next(e) : runStudioCommand($, e.args ?? '')))
 
   // The protocol rides the mod, so a stale global SKILL.md cannot override it.
   on('prompt.compose', async ($, e, next) => {
