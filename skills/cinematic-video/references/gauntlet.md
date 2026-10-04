@@ -11,11 +11,11 @@ Adapted from the Gauntlet Loop idea (somethingbig.ai/gauntlet-loop): separate bu
    - the brief and the client's own words;
    - reference descriptions or files;
    - the previous critic's report (for verification rounds).
-   Never give the critic your reasoning or a list of what you think you fixed; it must find things itself.
+   Never give the critic your reasoning or a list of what you think you fixed; it must find things itself. While it reviews, keep building what it isn't looking at (later shots, audio); don't wait idle for its report.
 4. **Critics judge pixels and measurements**, not intentions. They extract frames themselves (contact sheets every 0.1–0.25s plus dense 1/30s windows around every transition) and compute frozen time and loudness with the scripts.
 5. **Fix the largest meaningful gap first.** Don't average away a weak opening with strengths elsewhere.
 6. **Verify, don't assume.** The next round uses a *new* critic that checks each prior item as FIXED / PARTLY / STILL PRESENT and looks for regressions. Fixes often create new defects, such as a covered element losing its z-order or a moved object now crossing a headline.
-7. **Stop** at the quality bar, at diminishing returns (remaining items are sub-frame or cosmetic), or when the user says stop. Not after an arbitrary number of rounds; usually 3–5.
+7. **Stop after the verification round.** Every artifact gets one critic round and at most one verification round; stop earlier at the quality bar or when the user says stop. Fix what verification still flags, check it in your own stills, and list it in the delivery note as self-checked. Another round only when the user asks for it.
 8. **Keep a ledger** in `qa/review_log.md`. One table: round → artifact → critic's top findings → changes made → measured result. It becomes the proof of craft for the client, and training material for the next project.
 
 If no fresh agent can be spawned, say at delivery that the review was self-assessed.
@@ -30,7 +30,7 @@ If no fresh agent can be spawned, say at delivery that the review was self-asses
 | Full film | Whole render | Holds, empty space, transitions, text collisions, pacing, clarity, audio |
 | Verification | New render + previous report | Item-by-item status + new regressions + SHIP / ONE MORE PASS |
 
-Stylized pieces usually need only Storyboard, Full film and Verification rounds; commercial pieces run all five.
+Stylized pieces run only Storyboard, Full film and Verification rounds; commercial pieces run all five.
 
 ## Measurement Commands
 
@@ -38,6 +38,7 @@ Stylized pieces usually need only Storyboard, Full film and Verification rounds;
 uv run <skill>/scripts/analyze_video.py out/final.mp4 --out qa/r1 --every 0.2 --frozen       # sheets + cuts + frozen time
 uv run <skill>/scripts/analyze_video.py out/final.mp4 --out qa/r1-phone --cells 15 --cell-width 360
 uv run <skill>/scripts/analyze_video.py out/final.mp4 --out qa/r1-cut7 --start 6.8 --duration 0.5 --every 0.0333
+uv run <skill>/scripts/analyze_video.py out/final.mp4 --out qa/r1-logo --crop 400:300:1300:700 --every 0.1   # zoom into a region
 uv run <skill>/scripts/audio_tools.py check out/final.mp4 --out qa/r1-audio --target -14
 uv run <skill>/scripts/render.py index.html qa/seek --seek-test 1 7.5 12.25
 ```

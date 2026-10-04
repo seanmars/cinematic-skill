@@ -1,6 +1,6 @@
 # Quality Bar
 
-A cut ships only when all of these hold for its profile. Critics check them; scripts measure the numeric ones.
+Every review round checks a cut against these for its profile: critics judge, scripts measure the numeric ones. What still misses the bar after the last round (`gauntlet.md`) goes into the delivery note as a known weakness.
 
 ## Measured
 

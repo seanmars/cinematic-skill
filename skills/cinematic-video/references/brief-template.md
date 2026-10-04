@@ -80,7 +80,7 @@ Shot 2 | 3.000–...
 <build>
 1. Picture: ... (stack); no external images or assets except user-supplied or ledgered AI generations.
 2. Page exposes window.render(t), drawing second t; all visuals derived from t only, seeded randomness, no timers, no state between frames.
-3. Custom components (3D, UI flows, logo marks) are built in an isolated lab and pass a component critic before joining the film.
+3. Custom components (3D, UI flows, logo marks) are built in an isolated lab; commercial pieces put each through a component critic before it joins the film.
 4. Render: render.py calls render(t) per frame and captures; ffmpeg encodes MP4. Settings: ... (motion blur: ... subframes, ...° shutter).
 5. Audio: ...; SFX on the frame of the on-screen action.
 6. After each shot, render 3 stills and check text overflow, overlaps, subject scale, reading time; fix before the next shot.
@@ -91,6 +91,6 @@ Shot 2 | 3.000–...
 </gotchas>
 
 <start>
-Get a storyboard critic pass on <structure>. Build components in labs, then shots in order with QC stills after each. Render the full cut, run the Gauntlet until the quality bar holds, then deliver.
+Get a storyboard critic pass on <structure>. Build components in labs, then shots in order with QC stills after each. Render the full cut, run one Gauntlet round and one verification round, then deliver.
 </start>
 ```

@@ -25,9 +25,9 @@ ONE_IDEA = "One idea per shot; minimal, large type, readable at phone size."
 NO_FREEZE = "The frame never freezes >0.6s; holds keep a slow 3–5% push."
 EASING = "Animate with easing or springs, never linear; transitions grow out of on-screen content, no default crossfades."
 BUILD_PAGE = "2. Page exposes window.render(t), drawing second t; all visuals derived from t only, seeded randomness, no timers, no state between frames."
-BUILD_LABS = "3. Custom components (3D, UI flows, logo marks) are built in an isolated lab and pass a component critic before joining the film."
+BUILD_LABS = "3. Custom components (3D, UI flows, logo marks) are built in an isolated lab; commercial pieces put each through a component critic before it joins the film."
 BUILD_QC = "6. After each shot, render 3 stills and check text overflow, overlaps, subject scale, reading time; fix before the next shot."
-START = "Get a storyboard critic pass on <structure>. Build components in labs, then shots in order with QC stills after each. Render the full cut, run the Gauntlet until the quality bar holds, then deliver."
+START = "Get a storyboard critic pass on <structure>. Build components in labs, then shots in order with QC stills after each. Render the full cut, run one Gauntlet round and one verification round, then deliver."
 FIXED_LINES = [ROLE, ON_MODEL, ONE_IDEA, NO_FREEZE, EASING, BUILD_PAGE, BUILD_LABS, BUILD_QC, START]
 
 INPUT_LABELS = [

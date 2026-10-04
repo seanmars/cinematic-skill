@@ -58,7 +58,7 @@ This workspace runs the cinematic-video web studio. These rules override the ski
 - realign:audio/plan.json[<row>] is a cue inside the shot whose duration changed, left where it was: realign it to the shot's new action and rewrite its time in audio/plan.json.
 - music-recut means the film's length changed under a score: recut the music to the new timing, then mix again.
 - A message starting with [studio project <slug>] hands this session a project. A new one sent from the studio: start Intake from video/<slug>/studio/intake.json. One another session started: continue from the gate it names.
-- The full high-quality render waits for an approved build-polish gate; stills, --seek-test and partial --start/--duration renders do not.
+- The full high-quality render waits for an approved build-polish gate; stills, --seek-test, partial --start/--duration renders and the animatic (render it whole to qa/animatic.mp4, not out/) do not.
 - During Build, keep video/<slug>/studio/progress.json current as each shot moves on, not storyboard.json: {"shots": {"<shot id>": {"status": "building" | "done", "stills": ["<path relative to the project>", ...]}}} (the skill's schema/progress.schema.json).
 - Every render.py video render (not --still or --seek-test) adds --progress-file node_modules/.cinematic-studio/render/<slug>.json, so the studio can show frames done and time left.
 
@@ -69,8 +69,8 @@ Each gate's payload is what its studio panel shows. Reports are markdown text; f
   treatments: {} (the panel reads treatments.json and each option's preview)
   storyboard: {"critic": "<storyboard critic report>"}
   assets: {"assets": ["<generated file>", ...], "critic": "<asset critic report>", "ledger": "source/ledger.md"}
-  build-animatic: {"animatic": "<the 960x540 animatic>", "critic": "<component critic report>"}
-  build-polish: {"critic": "<component critic results>", "renderEstimate": "<time the full render will take>"}
+  build-animatic: {"animatic": "<the 960x540 animatic>", "critic": "<component critic report; stylized: your own stills check>"}
+  build-polish: {"critic": "<component critic results; stylized: your own stills check>", "renderEstimate": "<time the full render will take>"}
   audio: {"mix": "<the mix>", "loudness": "<loudness report>"}
   gauntlet: {"round": <n>, "critic": "<what the critics found>", "measurements": "<frozen time and loudness>", "reviewLog": "qa/review_log.md"}
   deliver: {"film": "out/final.mp4", "poster": "<the poster>", "notes": "<delivery notes>", "confirm": ["<fact the user must confirm>", ...]}

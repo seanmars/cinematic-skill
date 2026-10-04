@@ -79,6 +79,21 @@ test('partial renders run', async ($, on) => {
   expect(ran).toEqual(commands)
 })
 
+test('run from the workspace root: the animatic in qa/ runs, the full render in out/ is refused', async ($, on) => {
+  const engine = fakeEngine(on)
+  const ran = shell(on)
+  buildStage(engine)
+  await startSession($)
+  const script = 'uv run .claude/skills/cinematic-video/scripts/render.py'
+  const animatic = `${script} video/${SLUG}/index.html video/${SLUG}/qa/animatic.mp4 --size 960x540 --fps 30 --duration 8`
+  const full = `${script} video/${SLUG}/index.html video/${SLUG}/out/picture.mp4 --size 1920x1080 --fps 30 --duration 8`
+
+  await $.tool.call({ tool: 'Bash', command: animatic })
+  await $.tool.call({ tool: 'Bash', command: full })
+
+  expect(ran).toEqual([animatic])
+})
+
 test('auto-continue counts as approved', async ($, on) => {
   const engine = fakeEngine(on)
   const ran = shell(on)
