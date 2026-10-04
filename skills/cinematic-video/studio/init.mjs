@@ -109,10 +109,16 @@ function writeManifest(skill, version) {
   writeJson(path.join(skill, 'hooks/hooks.json'), { modules: ['../studio/mod/register.ts'] })
 }
 
+// The skill's scripts, in the one form SKILL.md has Claude write them: a
+// relative path from the workspace root, in either shell tool.
 function settings() {
   return {
     permissions: {
-      allow: [`mcp__${SKILL_NAME}__*`, `Bash(uv run ${SKILL_IN_WORKSPACE}/scripts/*)`],
+      allow: [
+        `mcp__${SKILL_NAME}__*`,
+        `Bash(uv run ${SKILL_IN_WORKSPACE}/scripts/*)`,
+        `PowerShell(uv run ${SKILL_IN_WORKSPACE}/scripts/*)`,
+      ],
     },
     hooks: {
       Notification: [

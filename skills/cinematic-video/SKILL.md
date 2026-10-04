@@ -19,6 +19,8 @@ The pipeline: **pre-production with one sign-off, autonomous production, indepen
 
 `<skill>` below is this skill's directory. Scripts run with uv (dependencies declared inline): `uv run <skill>/scripts/<name>.py`.
 
+Run each script as a command of its own from the working directory: no `cd`, shell variables, loops or `&&` chains. Batch with the scripts' own options instead (`--still 1 2 3`, `--frames`, `--crop`), and keep scratch files inside the project, not in a temp folder. In a studio workspace write `<skill>` as `.claude/skills/cinematic-video`. That relative form is what the workspace's permission rules approve; any other command stops the run at a permission prompt until the user answers it.
+
 ## Profiles
 
 Choose one at intake and say which; it sets pacing, audio and ship criteria.
@@ -92,7 +94,7 @@ Ask only what changes the treatment, max 3 questions: runtime, aspect ratio, VO,
 Write three treatments per `treatments.md` into `treatments.json` (schema: `<skill>/schema/treatments.schema.json`). They must differ in look, structure or stack, not palette: one safe, one new visual language, one new storytelling device. Draw each Look from the genre, viral-look, color and lighting techniques (`shot-design.md`).
 
 ### 3. Previews and sign-off
-One style frame per treatment, built from its most representative shot on shot-local time: `uv run <skill>/scripts/render.py previews/plan-a.html previews/plan-a.png --still 2.0 --size 1920x1080`. Motion-driven treatments get a 2–4s motion test (`--fps 30 --duration 3`). Fix obvious issues before showing. Estimate render time: per-frame time × frames × subframes × 1.3.
+One style frame per treatment, built from its most representative shot on shot-local time: `uv run <skill>/scripts/render.py previews/plan-a.html previews/plan-a.png --still 2.0 --size 1920x1080`. Motion-driven treatments get a 2–4s motion test (`--fps 30 --duration 3`). Fix obvious issues before showing. Estimate render time from a timed 2s render at the final settings, scaled to the full length.
 
 Present all three with preview paths; the user picks, mixes or revises. Record the choice in `treatments.json` (`chosen`); keep the other options as a record. **This is the only approval gate.** After it, build without asking for step-by-step approval and report status in one line during long work. Web mode is the exception: when the studio mod is loaded, its web studio protocol is in your system prompt; follow it instead (it gates every stage).
 
@@ -104,25 +106,25 @@ AI stills and clips, green-screen characters and the generation ledger: see `cod
 
 ### 6. Build
 Read `craft-rules.md` first.
-- **Components in isolation:** each custom component (3D scene, UI flow, logo mark) gets a lab page from `templates/component-lab.html`, rendered as stills plus a 3–4s proof, and needs a component critic's KEEP before joining the film.
-- **Shot by shot:** after each shot, render 3 stills (`--still`) and check text overflow, overlaps, subject scale and reading time. For 30s+ pieces, once all shots are blocked in, render a 960×540 animatic without motion blur; lock pacing and transitions before polishing.
+- **Components in isolation:** each custom component (3D scene, UI flow, logo mark) gets a lab page from `templates/component-lab.html`, rendered as stills plus a 3–4s proof. Commercial: a component critic round (`gauntlet.md`) before it joins the film. Stylized: check it in your own stills; the full-film critic judges it in the cut.
+- **Shot by shot:** after each shot, render 3 stills in one call (`--still t1 t2 t3`) and check text overflow, overlaps, subject scale and reading time. For 30s+ pieces, once all shots are blocked in, render a 960×540 animatic without motion blur to `qa/animatic.mp4`; lock pacing and transitions before polishing.
 - **One root timeline:** scenes map film time → local time; carried objects hand off at exact pixel coordinates.
 - **Keep the camera moving:** push in, pull out, track. Without camera direction, frames default to a locked-off camera and feel empty.
 
 Use the framework the user names; otherwise a single HTML file (`code-stack.md`).
 
 ### 7. Render
-`uv run <skill>/scripts/render.py index.html out/picture.mp4 --size 1920x1080 --fps 30 --duration 30`. Motion blur: `--subframes 4` (4× render time; warn the user) and `--shutter 180–360`. Partial re-renders: `--start` / `--duration`. Determinism: `--seek-test 1 7.5 12.25`.
+`uv run <skill>/scripts/render.py index.html out/picture.mp4 --size 1920x1080 --fps 30 --duration 30`. It renders chunks in parallel browsers (`--workers`, default up to 4); lower it if memory runs short. Motion blur: `--subframes 4` (4× render time; warn the user) and `--shutter 180–360`. Partial re-renders: `--start` / `--duration`. Determinism: `--seek-test 1 7.5 12.25`.
 
 ### 8. Audio
 Per `audio.md` and the profile. Stylized: synthesize score and SFX, mix, normalize, mux into `out/final.mp4`. Commercial: `audio_tools.py mix out/picture.mp4 out/final.mp4 --score ... --music-lufs ... --plan audio/plan.json --sfx-dir audio/sfx`, plus a music-only fallback (`--no-sfx`).
 
 ### 9. Gauntlet
 1. Measure: frozen time, contact sheets, phone sheet, loudness (commands in `gauntlet.md`).
-2. Send the render to a fresh full-film critic (`critic-prompts.md`); never pass your own reasoning.
+2. Send the render to a fresh full-film critic (`critic-prompts.md`); never pass your own reasoning. While it reviews, keep working (audio, the delivery note) rather than waiting for its report.
 3. Fix the highest-impact items, re-render only the affected seconds, re-measure.
 4. A *new* verification critic checks each prior item FIXED / PARTLY / STILL PRESENT and flags regressions.
-5. Stop at the quality bar (`quality-bar.md`), at diminishing returns, or when the user says stop; usually 3–5 rounds. Log every round in `qa/review_log.md`.
+5. Stop after the verification round: every artifact gets one critic round and at most one verification round. Fix what verification still flags, check it in your own stills and list it in the delivery note as self-checked. Another round only when the user asks for it. Log every round in `qa/review_log.md`.
 
 ### 10. Deliver
 Master MP4, `brief.md`, project directory and `qa/review_log.md`, with a short note: key creative decisions, known weaknesses, render time, what was measured versus listened to, sampled versus exhaustive review. Commercial adds a poster frame, the music-only fallback and the generation ledger. List uncertain facts separately for the user to verify.

@@ -39,7 +39,7 @@ One entry in `options` per treatment, ids `A`, `B`, `C`:
 | Shot Breakdown | `shots`: `{ "range": "0–3s", "text": "..." }` per line |
 | Signature moves | `signatureMoves` (one string each) |
 | Audio | `audio` |
-| Estimate · Key risk | two fields: `estimate` is the render time only (a first guess now; update it once Step 3 has measured the per-frame time), `risk` is the key risk in one line |
+| Estimate · Key risk | two fields: `estimate` is the render time only (a first guess now; update it once Step 3 has timed a short render), `risk` is the key risk in one line |
 | Why it fits | `whyItFits` |
 | Preview | `preview`: the style frame; `motionTest`: the 2–4s motion test, only for motion-driven treatments (paths relative to the project) |
 

@@ -1,6 +1,12 @@
 # Critic Prompts
 
-Copy, fill the `<>` slots, and send each to a **fresh** agent. Keep your own reasoning out of the prompt. `<skill>` is this skill's directory.
+Copy, fill the `<>` slots, and send each to a **fresh** agent. Keep your own reasoning out of the prompt. `<skill>` is this skill's directory, written as in SKILL.md; `<scratch>` is a folder inside the project, such as `qa/r1`. End every prompt with the Commands block.
+
+## Commands
+
+```
+Run each command on its own, exactly in this form, from <working directory>: uv run <skill>/scripts/analyze_video.py ... or uv run <skill>/scripts/audio_tools.py .... Zoom into details with analyze_video.py --crop W:H:X:Y. Don't call ffmpeg directly, chain commands with cd, && or loops, or write files outside <scratch>: any of those stops at a permission prompt that nobody is watching.
+```
 
 ## Storyboard Critic
 
@@ -17,7 +23,7 @@ You are an independent visual critic in a Gauntlet loop; you did not build this.
 
 Artifact: <path to lab proof MP4> (<duration>s, 1920x1080, <fps>fps). A <Three.js / UI> component for a <profile> piece (brand: <palette hex values>, <typeface>). It shows <one-sentence description of what it should communicate>. It replaces <previous version and why it was rejected, in the client's words>. Bar: <premium SaaS launch films | the brief's look> (realistic materials, confident camera, meaningful information, no wasted space).
 
-Method: run `uv run <skill>/scripts/analyze_video.py <artifact> --out <scratch>/c --every 0.1 --frozen --frames <key times>` and look at the sheets and frames. Crop into details: geometry joins, materials, label legibility, pin accuracy against the thing it points at, collisions, pops or holds.
+Method: run `uv run <skill>/scripts/analyze_video.py <artifact> --out <scratch>/c --every 0.1 --frozen --frames <key times>` and look at the sheets and frames. Crop into details with --crop: geometry joins, materials, label legibility, pin accuracy against the thing it points at, collisions, pops or holds.
 
 Report (under 450 words), also written to <path>:
 - Verdict: KEEP / REVISE / REJECT.

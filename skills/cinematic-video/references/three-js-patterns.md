@@ -47,4 +47,4 @@ export async function createScene(canvas, opts = {}) {
 
 ## Lab First
 
-Build each scene in a copy of `templates/component-lab.html`, render stills at meaningful times plus a 3–4s proof with render.py, and get a component critic's KEEP before integrating. For a device that must move like the real one, see `product-hero-realism.md`.
+Build each scene in a copy of `templates/component-lab.html`, render stills at meaningful times plus a 3–4s proof with render.py, and (commercial) put it through a component critic round before integrating. For a device that must move like the real one, see `product-hero-realism.md`.
