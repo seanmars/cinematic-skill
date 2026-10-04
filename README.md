@@ -30,15 +30,23 @@ Extra requirements:
 - Node.js 22.12 or later, and pnpm (npm works too)
 - A Claude Code version that loads plugin mods (function hooks)
 
-Create a workspace with the skill copied into it, then start the studio and Claude Code there:
+Create a workspace with the skill copied into it, then open Claude Code there:
 
 ```bash
 node <skill>/studio/init.mjs my-studio
 cd my-studio
-pnpm install
-pnpm dev        # the studio, at http://127.0.0.1:5173
-claude          # in a second terminal; accept the workspace trust prompt
+claude          # accept the workspace trust prompt
 ```
+
+Then, in Claude Code:
+
+```
+/studio start   # installs the studio's dependencies the first time, starts it and opens it in the browser
+/studio stop    # stops it; add --force while other sessions here are online
+/studio         # whether it runs, and where
+```
+
+The studio also stops by itself when the last Claude Code session in the workspace exits.
 
 `<skill>` is where `npx skills add` put the skill (for example `~/.claude/skills/cinematic-video`). Start a project from the studio's **New project** form; with one Claude Code session open it is assigned to that session, with several you pick one. Without the studio, the skill keeps working as before (one approval gate, in the chat).
 
@@ -47,11 +55,10 @@ claude          # in a second terminal; accept the workspace trust prompt
 ```bash
 pnpm install
 pnpm playground   # once: a playground/ workspace linked to skills/, seeded with fixtures/demo
-pnpm dev          # the studio on playground/
 pnpm test         # studio (vitest), mod (claude plugin test), scripts (pytest via uv)
 ```
 
-Open `claude` inside `playground/` to drive it; edits to `skills/cinematic-video` take effect there without another init.
+Open `claude` inside `playground/` and run `/studio start`; edits to `skills/cinematic-video` take effect there without another init. After changing the studio's server code, restart it with `/studio stop` and `/studio start`. The studio's output goes to `playground/node_modules/.cinematic-studio/studio.log`.
 
 ## License
 

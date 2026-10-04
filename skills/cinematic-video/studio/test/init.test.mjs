@@ -83,9 +83,9 @@ describe('init in normal mode', () => {
     expect(result.stderr).toBe('')
     expect(fs.existsSync(path.join(target, '.claude/skills/cinematic-video/SKILL.md'))).toBe(true)
     expect(fs.statSync(path.join(target, 'video')).isDirectory()).toBe(true)
-    expect(result.stdout).toMatch(/pnpm install/)
-    expect(result.stdout).toMatch(/pnpm dev/)
     expect(result.stdout).toMatch(/claude/)
+    expect(result.stdout).toMatch(/\/studio start/)
+    expect(result.stdout).not.toMatch(/install|pnpm dev|npm run dev/)
   })
 
   it('目標目錄非空且沒有 force: writes nothing and points at --force', () => {
@@ -123,13 +123,13 @@ describe('init in normal mode', () => {
     expect(fs.existsSync(target)).toBe(false)
   })
 
-  it('沒有安裝 pnpm: the next steps use npm', () => {
+  // Installing moved to /studio start, which picks pnpm or npm itself.
+  it('needs no package manager: without pnpm the next steps are the same', () => {
     const result = runInit([newTarget()], { env: envWithoutPnpm() })
 
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout).toMatch(/npm install/)
-    expect(result.stdout).toMatch(/npm run dev/)
-    expect(result.stdout).not.toMatch(/pnpm/)
+    expect(result.stdout).toMatch(/\/studio start/)
+    expect(result.stdout).not.toMatch(/npm/)
   })
 
   it('複製時排除快取與依賴: copies every other skill file', () => {
@@ -163,7 +163,7 @@ describe('init in normal mode', () => {
 
     const pkg = readJson(path.join(target, 'package.json'))
     expect(pkg.dependencies).toEqual({ vite: '^8.3.2', sirv: '^3.0.2' })
-    expect(pkg.scripts.dev).toContain('.claude/skills/cinematic-video/studio/')
+    expect(pkg.scripts).toBeUndefined()
   })
 
   it('writes the workspace marker, settings and gitignore, but no MCP config', () => {
