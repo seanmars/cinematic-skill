@@ -108,6 +108,18 @@ describe('static preview', () => {
     expect(res.text).not.toContain('<div id="root">')
   })
 
+  // The preview asks before it mounts the page: from the storyboard's
+  // writing until Build there is no index.html yet.
+  it('answers HEAD with 404 for a page not written yet, then 200 once it is', async () => {
+    const page = path.join(workspace, 'video/demo/index.html')
+    const html = fs.readFileSync(page, 'utf8')
+    fs.rmSync(page)
+
+    expect((await request(studio.port, 'HEAD', '/__video/demo/index.html')).status).toBe(404)
+    fs.writeFileSync(page, html)
+    expect((await request(studio.port, 'HEAD', '/__video/demo/index.html')).status).toBe(200)
+  })
+
   it('serves only projects, and only reads', async () => {
     writeText(workspace, 'video/old-promo/index.html', '<p>old</p>')
 

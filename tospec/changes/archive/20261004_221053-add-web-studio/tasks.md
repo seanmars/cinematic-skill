@@ -4,7 +4,7 @@
 - [x] 1.1 寫會失敗的 vitest: 「其他網站對 studio 送出寫入請求」、「剛從網頁送出 Intake 的專案」「舊專案」(專案列表)、寫入 reply 時會驗證 gate 狀態與 decision
 - [x] 1.2 在 `studio/package.json` 加入 Vite、React、Tailwind、shadcn/ui 相關套件與 sirv;實作 `dev.mjs`、request guard (D2)、專案列表與 gate/reply API (D3)、watcher 推送與 recent-writes 抑制 (D4),直到測試通過
 - [x] 1.3 實作最小 UI: 版面骨架、深色主題 tokens、locale 基礎 (zh-TW、en)、專案列表、gate 面板上的「核准」按鈕;根目錄 `pnpm dev` 改成以 playground 啟動
-- [ ] 1.4 在 playground 用真正的 Claude Code 端對端驗證: Claude 開 gate → 網頁核准 → Claude 在數秒內被喚醒
+- [ ] 1.4 在 playground 用真正的 Claude Code 端對端驗證 (以 `/studio start` 啟動 studio): Claude 開 gate → 網頁核准 → Claude 在數秒內被喚醒
 
 ## 2. Intake、指派與 session 狀態
 - [x] 2.1 寫會失敗的 vitest: 「只有一個線上 session」「沒有線上 session」、多個 session 時要求選擇、重新指派與手動解鎖會寫入 assignment、session 與 permission 狀態 API (server 的 1 秒輪詢推送)
@@ -51,5 +51,24 @@
 
 ## 9. 文件與端對端驗收
 - [x] 9.1 更新 README: web 模式的需求 (Node、pnpm、支援 mod 的 Claude Code)、init 用法、本 repo 的開發方式
-- [ ] 9.2 用一般模式 init 一個全新的 workspace,用真正的 Claude Code 從網頁 Intake 一路做到 Deliver,每一種 gate 至少操作一次
+- [ ] 9.2 用一般模式 init 一個全新的 workspace,開啟 Claude Code 後以 `/studio start` 啟動 studio,從網頁 Intake 一路做到 Deliver,每一種 gate 至少操作一次
 - [x] 9.3 執行 `pnpm test` (vitest、mod 測試、pytest),確認全部通過,而且沒有略過的測試
+
+## 10. studio 的啟動與停止
+- [ ] 10.1 Spike (Windows): 由 mod 的 `$.process.run` 執行 launcher,以 detached 方式啟動 server,確認以下幾點,並把結果記錄在 design 的 D12;任何一點不成立,就先回頭檢討 `20261004_201938-studio-lifecycle-slash-command.md`
+  - `$.process.run` 在 launcher 結束後立刻返回
+  - 啟動它的 claude `/exit` 之後,server 仍然存活
+  - 在 `session.end` 裡用 `taskkill /T /F` 結束 process tree,能在 1.5 秒內完成
+  - 已經有 `node_modules/.cinematic-studio/` 時,`pnpm install` 能正常完成
+- [x] 10.2 寫會失敗的 vitest: launcher 在一般模式缺少依賴時執行安裝、link 模式只提示不安裝、`server.json` 指向正在服務的 studio 時沿用、server listen 後寫出實際網址與 pid、舊的 `server.json` 視為未啟動、`--no-open` 不開啟瀏覽器
+- [x] 10.3 實作 launcher (`studio/start.mjs`),以及 server 入口寫出 `server.json` (D12),直到測試通過
+- [x] 10.4 寫會失敗的 mod 測試: 「在 workspace 啟動 studio」「studio 已經在執行」「還有其他線上 session 時停止」「最後一個 session 離開」「還有其他 session 時離開」「執行 /clear」「studio 沒有在執行時開 gate」,以及 status line 顯示網址或 not running
+- [x] 10.5 實作 mod 的 `/studio` 指令、`session.end` 的停止邏輯、status line 與開 gate 時的提醒 (D12),直到測試通過
+- [x] 10.6 先改 init 測試 (下一步指示是開啟 Claude Code 後執行 `/studio start`,產生的 package.json 沒有 dev script),再修改 init;拿掉 repo 根目錄的 dev script;更新 README 與 `docs/web-studio-manual-test.md` 的啟動與結束步驟
+- [ ] 10.7 在 playground 手動驗證「在 workspace 啟動 studio」「最後一個 session 離開」「還有其他 session 時離開」「link 模式還沒安裝依賴」
+- [x] 10.8 執行 `pnpm test` (vitest、mod 測試、pytest),確認全部通過,而且沒有略過的測試
+
+## 11. 改動清單在 studio 重新啟動後保留 (sync 發現的 CODE-BUG)
+- [x] 11.1 寫會失敗的 vitest: 在 gate 編輯鏡頭後重新啟動 studio,專案的改動清單與之後的回覆仍然列出該欄位;回覆後清單清空
+- [x] 11.2 把改動清單寫成 `node_modules/.cinematic-studio/changes/<slug>/<gateId>.json` (studio 是唯一寫入者,回覆後刪除),直到測試通過
+- [x] 11.3 執行 `pnpm test` (vitest、mod 測試、pytest),確認全部通過,而且沒有略過的測試

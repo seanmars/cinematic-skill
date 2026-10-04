@@ -7,7 +7,6 @@
 //
 // Node built-ins only: a skill installed with `npx skills add` has no .git and
 // no dependencies, so this must run from a bare copy.
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -82,13 +81,6 @@ function checkTarget(dir, force) {
   if (visible.length > 0 && !force) fail(`${dir} is not empty; pass --force to write into it anyway`)
 }
 
-function detectPackageManager() {
-  // One command string: through a shell so Windows finds pnpm.cmd, and with no
-  // argument list, which Node warns about under shell: true.
-  const pnpm = spawnSync('pnpm --version', { shell: true, stdio: 'ignore' })
-  return pnpm.status === 0 ? 'pnpm' : 'npm'
-}
-
 function isCopied(src) {
   const file = path.relative(skillDir, src).split(path.sep).join('/')
   return !EXCLUDED_NAMES.has(path.basename(src)) && !file.endsWith('.pyc') && !MANIFEST_PATHS.has(file)
@@ -133,26 +125,25 @@ function settings() {
   }
 }
 
-const OPEN_CLAUDE = `Then open Claude Code there:
+// The studio's dependencies are installed by /studio start, not here.
+function nextSteps(dir) {
+  return `Next steps:
+  cd ${dir}
   claude
-Accept the trust prompt the first time; the studio mod loads once the folder is trusted.`
+Accept the trust prompt the first time; the studio mod loads once the folder is trusted.
+Then run /studio start in Claude Code to start the studio and open it in your browser.`
+}
 
-function printNextSteps(dir, packageManager) {
-  const run = packageManager === 'pnpm' ? 'pnpm dev' : 'npm run dev'
+function printNextSteps(dir) {
   console.log(`Created a cinematic studio workspace in ${dir}
 
-Next steps:
-  cd ${dir}
-  ${packageManager} install
-  ${run}
-
-${OPEN_CLAUDE}`)
+${nextSteps(dir)}`)
 }
 
 function printLinkedNextSteps(dir) {
   console.log(`Linked a cinematic studio workspace in ${dir} to ${skillDir}
 
-${OPEN_CLAUDE}`)
+${nextSteps(dir)}`)
 }
 
 const args = parseArgs(process.argv.slice(2))
@@ -173,7 +164,6 @@ if (!args.link) {
   writeJson(path.join(target, 'package.json'), {
     private: true,
     type: 'module',
-    scripts: { dev: `node ${SKILL_IN_WORKSPACE}/studio/dev.mjs` },
     dependencies: studioPackage.dependencies ?? {},
   })
 }
@@ -183,4 +173,4 @@ fs.mkdirSync(path.join(target, 'video'), { recursive: true })
 if (seed !== undefined) fs.cpSync(seed, path.join(target, 'video', path.basename(seed)), { recursive: true })
 
 if (args.link) printLinkedNextSteps(target)
-else printNextSteps(target, detectPackageManager())
+else printNextSteps(target)

@@ -36,6 +36,9 @@ function readProjectView(workspace, slug, { changeLog, warnings }) {
 function routes(workspace, store) {
   const project = rest => new RegExp(`^/api/projects/([^/]+)${rest}$`)
   return [
+    // Which process serves which workspace: the launcher and the mod check
+    // server.json against it (D12).
+    ['GET', /^\/api\/studio$/, () => ({ pid: process.pid, workspace })],
     ['GET', /^\/api\/projects$/, () => ({ projects: listProjects(workspace) })],
     ['GET', project(''), ([slug]) => readProjectView(workspace, slug, store)],
     ['GET', project('/techniques'), ([slug]) => readTechniques(workspace, slug)],

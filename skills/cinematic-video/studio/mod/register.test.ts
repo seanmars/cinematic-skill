@@ -11,6 +11,7 @@ test('沒有 workspace 標記: registers nothing and never wakes Claude', async 
   await engine.clock.advance(6000)
 
   expect(engine.tools).toEqual([])
+  expect(engine.commands).toEqual([])
   expect(engine.status).toEqual([])
   expect(engine.submitted).toEqual([])
 })
