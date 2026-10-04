@@ -91,6 +91,7 @@ const zhTw = {
   'preview.timeout': '頁面一直沒有準備好: 找不到 window.render, 或 window.ready 始終是 false.',
   'preview.failed': 'render({time}) 失敗: {message}',
   'preview.unavailable': '這個專案的 renderRoot 在 video/ 之外, 無法預覽.',
+  'preview.missing': '還沒有畫面: Claude 在 Build 階段寫出 index.html 後, 預覽會自動出現.',
   'playhead.label': '播放頭',
   'playhead.time': '{time} / {length} 秒',
 

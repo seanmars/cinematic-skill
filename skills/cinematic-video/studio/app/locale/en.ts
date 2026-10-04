@@ -92,6 +92,7 @@ const en: Record<keyof typeof zhTw, string> = {
   'preview.timeout': 'The page never got ready: no window.render, or window.ready stayed false.',
   'preview.failed': 'render({time}) failed: {message}',
   'preview.unavailable': "This project's renderRoot lies outside video/, so it cannot be previewed.",
+  'preview.missing': 'No picture yet: the preview appears by itself once Claude writes index.html during Build.',
   'playhead.label': 'Playhead',
   'playhead.time': '{time} / {length}s',
 

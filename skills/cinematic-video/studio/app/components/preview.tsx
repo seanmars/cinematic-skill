@@ -29,9 +29,21 @@ async function untilReady(page: PageWindow, isCurrent: () => boolean) {
   return false
 }
 
+// Whether the page is there yet: from the storyboard's writing until Build
+// there is no index.html, and the iframe would sit on a 404 waiting for
+// render(t). Only a 404 means missing; anything else mounts the page, which
+// reports its own trouble.
+async function hasPage(src: string) {
+  try {
+    return (await fetch(src, { method: 'HEAD', cache: 'no-store' })).status !== 404
+  } catch {
+    return true
+  }
+}
+
 // The project's page at its own resolution, scaled to fit, showing
 // render(time) as render.py would capture it (D5). A studio:preview push
-// for this project reloads it.
+// for this project reloads it; the page's first writing sends one too.
 export function Preview({
   slug,
   src,
@@ -48,6 +60,9 @@ export function Preview({
   const container = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0)
   const [reloads, setReloads] = useState(0)
+  // Unknown until the first check; kept through later checks, so a reload of
+  // a page that is there does not blink.
+  const [isPageThere, setIsPageThere] = useState<boolean | undefined>(undefined)
   const [status, setStatus] = useState<Status>({ kind: 'loading' })
   const wantedTime = useRef(time)
   const isRendering = useRef(false)
@@ -89,6 +104,16 @@ export function Preview({
   }, [time, status.kind, renderLatest])
 
   useEffect(() => {
+    let isCurrent = true
+    void hasPage(src).then(exists => {
+      if (isCurrent) setIsPageThere(exists)
+    })
+    return () => {
+      isCurrent = false
+    }
+  }, [src, reloads])
+
+  useEffect(() => {
     const onPreview = (change: { slug: string }) => {
       if (change.slug === slug) setReloads(count => count + 1)
     }
@@ -113,20 +138,31 @@ export function Preview({
         className="relative overflow-hidden rounded-md bg-black"
         style={{ width: size.width * scale, height: size.height * scale }}
       >
-        <iframe
-          key={reloads}
-          ref={frame}
-          src={src}
-          title={slug}
-          onLoad={() => void onLoad()}
-          className="absolute top-0 left-0 origin-top-left border-0"
-          style={{ width: size.width, height: size.height, transform: `scale(${scale})` }}
-        />
+        {isPageThere === true && (
+          <iframe
+            key={reloads}
+            ref={frame}
+            src={src}
+            title={slug}
+            onLoad={() => void onLoad()}
+            className="absolute top-0 left-0 origin-top-left border-0"
+            style={{ width: size.width, height: size.height, transform: `scale(${scale})` }}
+          />
+        )}
+        {isPageThere === false && (
+          <p className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+            {t('preview.missing')}
+          </p>
+        )}
       </div>
-      {status.kind === 'loading' && <p className="text-xs text-muted-foreground">{t('preview.loading')}</p>}
-      {status.kind === 'timeout' && <p className="text-xs text-destructive">{t('preview.timeout')}</p>}
-      {status.kind === 'failed' && (
-        <p className="text-xs text-destructive">{t('preview.failed', { time: time.toFixed(2), message: status.message })}</p>
+      {isPageThere !== false && (
+        <>
+          {status.kind === 'loading' && <p className="text-xs text-muted-foreground">{t('preview.loading')}</p>}
+          {status.kind === 'timeout' && <p className="text-xs text-destructive">{t('preview.timeout')}</p>}
+          {status.kind === 'failed' && (
+            <p className="text-xs text-destructive">{t('preview.failed', { time: time.toFixed(2), message: status.message })}</p>
+          )}
+        </>
       )}
     </div>
   )
