@@ -1,0 +1,75 @@
+{
+  "options": [
+    {
+      "id": "A",
+      "title": "Desk Flight",
+      "logline": "A sticky note folds itself into a plane and carries one word across the desk.",
+      "look": {
+        "description": "Flat paper cut-out on a warm desk with soft top light.",
+        "palette": ["#F4EFE6", "#1F2430", "#E4572E"],
+        "typefaces": ["Inter"]
+      },
+      "specs": "8s · 16:9 · 30fps · stylized",
+      "stack": "Canvas 2D + spring easing + synthesized SFX",
+      "shots": [
+        { "range": "0–1.8s", "text": "Tidy desk, the note reads 'idea'." },
+        { "range": "1.8–2.6s", "text": "Two folds turn it into a dart." },
+        { "range": "2.6–5.7s", "text": "Launch; the word rides the wing." },
+        { "range": "5.7–8s", "text": "It lands as the period of the closing line." }
+      ],
+      "signatureMoves": ["The note becomes the plane", "The word rides the wing", "The plane lands as a period"],
+      "audio": "Soft ticks and a whoosh; no score",
+      "estimate": "~1 min render",
+      "risk": "The fold reads as a jump cut.",
+      "whyItFits": "The literal journey makes the takeaway readable on mute.",
+      "preview": "previews/plan-a.png"
+    },
+    {
+      "id": "B",
+      "title": "Paper Grain",
+      "logline": "The same flight told in close textures: every crease and shadow is the story.",
+      "look": {
+        "description": "Macro paper texture, warm amber grade, rim light on the folds.",
+        "palette": ["#F4EFE6", "#1F2430", "#E4572E", "#F2B134"],
+        "typefaces": ["Inter"]
+      },
+      "specs": "8s · 16:9 · 30fps · stylized",
+      "stack": "Canvas 2D with layered grain + synthesized SFX",
+      "shots": [
+        { "range": "0–1.8s", "text": "Push in on the note's orange corner." },
+        { "range": "1.8–2.6s", "text": "Insert: creases snap into place." },
+        { "range": "2.6–5.7s", "text": "Low-angle crane up as the plane launches." },
+        { "range": "5.7–8s", "text": "Close-up landing on the closing line." }
+      ],
+      "signatureMoves": ["Crease shadows sweep like a wipe", "The word rides the wing", "Landing becomes punctuation"],
+      "audio": "Paper ticks and a soft whoosh",
+      "estimate": "~2 min render",
+      "risk": "Grain flickers between frames.",
+      "whyItFits": "Texture makes a tiny object feel cinematic.",
+      "preview": "previews/plan-b.png",
+      "motionTest": "previews/plan-b-motion.mp4"
+    },
+    {
+      "id": "C",
+      "title": "One Long Glide",
+      "logline": "A single unbroken take follows the plane from fold to landing.",
+      "look": {
+        "description": "Clean isometric desk, cool daylight.",
+        "palette": ["#EAF0F6", "#1F2430", "#3A86FF"],
+        "typefaces": ["Inter"]
+      },
+      "specs": "8s · 16:9 · 30fps · stylized",
+      "stack": "Three.js with an orthographic camera",
+      "shots": [
+        { "range": "0–8s", "text": "One continuous move: fold, launch, glide, land." }
+      ],
+      "signatureMoves": ["No cuts", "Camera hands off from desk to sky to notebook", "Landing resolves the frame"],
+      "audio": "Continuous airy pad with a single tick",
+      "estimate": "~3 min render",
+      "risk": "A long take feels slow at 8s.",
+      "whyItFits": "A long take turns a small action into a journey.",
+      "preview": "previews/plan-c.png"
+    }
+  ],
+  "chosen": { "id": "B", "notes": "Keep the four-shot structure from A's timing." }
+}

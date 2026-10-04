@@ -39,10 +39,10 @@ Read only what the current step needs:
 
 | Step | Read |
 |---|---|
-| Treatments, previews | `references/treatments.md`, `references/code-stack.md` |
+| Treatments, previews | `references/treatments.md`, `schema/treatments.schema.json`, `references/code-stack.md` |
 | Shot language: size, angle, camera move, lighting, color, transitions | `references/shot-design.md` → `references/techniques/` (424 techniques) |
 | Storyboard, motion design | `references/motion-grammar.md`; `references/launch-film-notes.md` for concrete moments |
-| Brief | `references/brief-template.md` |
+| Brief | `schema/storyboard.schema.json`, `references/brief-template.md` |
 | Building pages, AI footage | `references/craft-rules.md`, `references/code-stack.md` |
 | 3D components | `references/three-js-patterns.md`, `templates/` |
 | 3D product that must move like the real one | `references/product-hero-realism.md` |
@@ -64,10 +64,12 @@ Read only what the current step needs:
 video/<slug>/
   source/        Source material, reference analysis, beats.json, ledger.md (AI generations)
   previews/      Treatment style frames / motion tests
-  brief.md       Locked creative brief; doubles as a reusable prompt
+  treatments.json  The three treatments and the user's choice
+  storyboard.json  Locked brief and shots: the single source of truth
+  brief.md       Generated from storyboard.json by brief.py; doubles as a reusable prompt
   lab/           Isolated component labs
   index.html     Picture code (or Remotion / HyperFrames / Manim project)
-  audio/         Score, SFX, VO, plan.json, mix
+  audio/         Score, VO, plan.json, sfx/, mix
   qa/            Stills, contact sheets, critic reports, review_log.md
   out/final.mp4  Master
 ```
@@ -87,15 +89,15 @@ Ask only what changes the treatment, max 3 questions: runtime, aspect ratio, VO,
 - **Supplied music:** `uv run <skill>/scripts/audio_tools.py beats <music> > source/beats.json`; time everything to it.
 
 ### 2. Treatments
-Write three treatments per `treatments.md`. They must differ in look, structure or stack, not palette: one safe, one new visual language, one new storytelling device. Draw each Look from the genre, viral-look, color and lighting techniques (`shot-design.md`).
+Write three treatments per `treatments.md` into `treatments.json` (schema: `<skill>/schema/treatments.schema.json`). They must differ in look, structure or stack, not palette: one safe, one new visual language, one new storytelling device. Draw each Look from the genre, viral-look, color and lighting techniques (`shot-design.md`).
 
 ### 3. Previews and sign-off
 One style frame per treatment, built from its most representative shot on shot-local time: `uv run <skill>/scripts/render.py previews/plan-a.html previews/plan-a.png --still 2.0 --size 1920x1080`. Motion-driven treatments get a 2–4s motion test (`--fps 30 --duration 3`). Fix obvious issues before showing. Estimate render time: per-frame time × frames × subframes × 1.3.
 
-Present all three with preview paths; the user picks, mixes or revises. **This is the only approval gate.** After it, build without asking for step-by-step approval and report status in one line during long work.
+Present all three with preview paths; the user picks, mixes or revises. Record the choice in `treatments.json` (`chosen`); keep the other options as a record. **This is the only approval gate.** After it, build without asking for step-by-step approval and report status in one line during long work.
 
 ### 4. Brief
-Write `brief.md` per `brief-template.md`, every approved detail filled in. Its `<structure>` is the storyboard: time → picture → job of the beat → transition out, including which object survives it. Choose each shot's size, angle, move and transition per `shot-design.md`, saving the strongest technique for the key moment. Send it to a fresh storyboard critic (`critic-prompts.md`) before building.
+Write `storyboard.json` (schema: `<skill>/schema/storyboard.schema.json`), expanding the chosen treatment with every approved detail. Its `shots` are the storyboard: duration → picture → job of the beat → transition out, including which object survives it. Fill each shot's four technique slots (framing, angle, movement, transition) per `shot-design.md`, saving the strongest technique for the key moment. A technique the library lacks becomes a custom technique file in the project (`shot-design.md`, Custom techniques); if neither the library nor the web explains it, ask the user, even after sign-off, rather than inventing one. Then generate the brief: `uv run <skill>/scripts/brief.py video/<slug>`. Never edit `brief.md` by hand: change `storyboard.json` and regenerate (`brief-template.md` shows the output). Send `brief.md` to a fresh storyboard critic (`critic-prompts.md`) before building.
 
 ### 5. Assets (if needed)
 AI stills and clips, green-screen characters and the generation ledger: see `code-stack.md`. Commercial: run an asset critic round on generations before they enter the film.
@@ -113,7 +115,7 @@ Use the framework the user names; otherwise a single HTML file (`code-stack.md`)
 `uv run <skill>/scripts/render.py index.html out/picture.mp4 --size 1920x1080 --fps 30 --duration 30`. Motion blur: `--subframes 4` (4× render time; warn the user) and `--shutter 180–360`. Partial re-renders: `--start` / `--duration`. Determinism: `--seek-test 1 7.5 12.25`.
 
 ### 8. Audio
-Per `audio.md` and the profile. Stylized: synthesize score and SFX, mix, normalize, mux into `out/final.mp4`. Commercial: `audio_tools.py mix out/picture.mp4 out/final.mp4 --score ... --music-lufs ... --plan audio/plan.json`, plus a music-only fallback (`--no-sfx`).
+Per `audio.md` and the profile. Stylized: synthesize score and SFX, mix, normalize, mux into `out/final.mp4`. Commercial: `audio_tools.py mix out/picture.mp4 out/final.mp4 --score ... --music-lufs ... --plan audio/plan.json --sfx-dir audio/sfx`, plus a music-only fallback (`--no-sfx`).
 
 ### 9. Gauntlet
 1. Measure: frozen time, contact sheets, phone sheet, loudness (commands in `gauntlet.md`).

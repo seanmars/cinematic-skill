@@ -1,0 +1,6 @@
+[
+  ["tick", 1.786, 4, "first fold"],
+  ["tick", 2.168, 4, "second fold"],
+  ["whoosh", 3.4, 2, "launch peak"],
+  ["tick", 5.714, 3, "landing"]
+]

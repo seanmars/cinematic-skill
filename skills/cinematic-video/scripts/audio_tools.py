@@ -12,7 +12,7 @@
   soften:     uv run audio_tools.py soften in.mp3 out.wav [--highpass 150] [--lowpass 10000] [--fade-out 0.15]
   screen:     uv run audio_tools.py screen "sfx/*.mp3"                           rank SFX candidates before listening
   gains:      uv run audio_tools.py gains music_only.wav events.json [--target 3.5] [--cap 4]
-  mix:        uv run audio_tools.py mix picture.mp4 out.mp4 --score music.mp3 --music-lufs -24 --plan sfx/plan.json
+  mix:        uv run audio_tools.py mix picture.mp4 out.mp4 --score music.mp3 --music-lufs -24 --plan audio/plan.json --sfx-dir audio/sfx
 
 timeline.json (sfx):
   {"duration": 12, "bpm": 120, "beat": "kick",            # optional soft pulse on every beat

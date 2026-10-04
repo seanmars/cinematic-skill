@@ -1,10 +1,34 @@
 # brief.md Template
 
-After approval, fill in everything confirmed. It drives this production and doubles as a reusable prompt: the user can swap the topic or run it in another tool as-is.
+`brief.md` is generated from `storyboard.json` by `uv run <skill>/scripts/brief.py video/<slug>`; never edit it by hand. After approval, fill `storyboard.json` (schema: `<skill>/schema/storyboard.schema.json`) with everything confirmed, then regenerate. The brief drives this production and doubles as a reusable prompt: the user can swap the topic or run it in another tool as-is.
 
-Rules: write approved items out in full, no bracketed placeholders; mark anything unspecified by the user as a default. Drop lines marked (commercial) for stylized pieces.
+Rules: write approved items out in full in `storyboard.json`, no placeholders; mark anything unspecified by the user as a default inside the field it belongs to (`"specs": "30s (default), 1920×1080, 30fps (default)"`). List intentional holds longer than 0.6s, with their times, in `direction.pacing`. Leave out `business` and `cta` for stylized pieces.
+
+`renderRoot` (optional) never appears in the brief: set it, relative to the project, when `render.py` needs `--root` because the page loads files outside its own folder (e.g. `previews/` sharing code with `lab/`), so every tool serves the page the same way.
+
+## Field Mapping
+
+| storyboard.json | brief.md |
+|---|---|
+| `inputs.*` | `<inputs>` lines, in the order below |
+| `direction.*` | `<direction>` lines, interleaved with the fixed rules |
+| `beatGrid` | `Beat grid / VO timeline:` |
+| `shots[n].duration` | `Shot n \| start–end`, accumulated in array order |
+| `shots[n].text.picture` / `job` / `action` | `Picture:` / `Job:` / `Action:` |
+| `techniques.framing` + `techniques.angle` | `Shot:` technique names |
+| `techniques.movement` + `text.camera` | `Camera:` |
+| `tags` | `Techniques:` |
+| `text.audio` | `Audio:` |
+| `techniques.transition` + `text.transition` | `Transition:` (what carries across, at which pixel position) |
+| `build.picture` / `render` / `audio` | `<build>` items 1, 4 and 5 |
+| `gotchas` | `<gotchas>` list |
+
+Technique names come from each technique file's `name`; an empty slot or field produces no line.
+
+## Output
 
 ```text
+<!-- generated from storyboard.json; edits will be overwritten -->
 <role>
 You are a motion designer and creative coder who crafts design-driven video in code.
 </role>
@@ -39,29 +63,31 @@ Avoid: ... (piece-specific, e.g. default centered title over gradient, everythin
 
 <structure>
 Beat grid / VO timeline: ...
-Shot 1 | 0.0–3.0s
+
+Shot 1 | 0.000–3.000s
 Picture: ...
 Job: ... (story beat; commercial: the business job of the beat)
 Action: in ..., main action ..., out ...
-Shot: size ..., angle ..., lens ...
-Camera: ... (move, speed, easing; technique file for key shots)
+Shot: Close-Up, Low Angle
+Camera: Push In; ... (speed, easing, landing)
+Techniques: Rim Light, Warm Amber
 Audio: ...
-Transition: ... (what carries across, at which pixel position)
-Shot 2 | ...
-...
+Transition: Match Cut; ... (what carries across, at which pixel position)
+
+Shot 2 | 3.000–...
 </structure>
 
 <build>
 1. Picture: ... (stack); no external images or assets except user-supplied or ledgered AI generations.
 2. Page exposes window.render(t), drawing second t; all visuals derived from t only, seeded randomness, no timers, no state between frames.
 3. Custom components (3D, UI flows, logo marks) are built in an isolated lab and pass a component critic before joining the film.
-4. Render: render.py calls render(t) per frame and captures; ffmpeg encodes MP4. (Motion blur: ... subframes, ...° shutter.)
-5. Audio: ...; SFX on the frame of the on-screen action; VO synthesized in one pass; mix to ... LUFS, true peak ≤ -1 dBTP.
+4. Render: render.py calls render(t) per frame and captures; ffmpeg encodes MP4. Settings: ... (motion blur: ... subframes, ...° shutter).
+5. Audio: ...; SFX on the frame of the on-screen action.
 6. After each shot, render 3 stills and check text overflow, overlaps, subject scale, reading time; fix before the next shot.
 </build>
 
 <gotchas>
-... (piece-specific pitfalls, e.g. wait for fonts before capture; confirm WebGL on one frame first; ACES tone mapping shifts brand colors; test-key one green-screen frame; loops need identical first and last frames)
+- ... (piece-specific pitfalls, e.g. wait for fonts before capture; confirm WebGL on one frame first; ACES tone mapping shifts brand colors; test-key one green-screen frame; loops need identical first and last frames)
 </gotchas>
 
 <start>

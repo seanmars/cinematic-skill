@@ -1,6 +1,6 @@
 # Treatment Format
 
-Pitch all three treatments together for side-by-side comparison. Keep each to one screen so the user can judge at a glance.
+Pitch all three treatments together for side-by-side comparison. Keep each to one screen so the user can judge at a glance. Store them in `video/<slug>/treatments.json` (schema: `<skill>/schema/treatments.schema.json`) and present them in the format below.
 
 ## Template
 
@@ -25,6 +25,25 @@ Pitch all three treatments together for side-by-side comparison. Keep each to on
 
 Preview: previews/plan-a.png
 ```
+
+## treatments.json
+
+One entry in `options` per treatment, ids `A`, `B`, `C`:
+
+| Presented as | Field |
+|---|---|
+| Treatment A: title | `id`, `title` |
+| Logline | `logline` |
+| Look | `look.description`, `look.palette` (2–4 hex), `look.typefaces` |
+| Specs, Stack, CTA | `specs`, `stack`, `cta` (commercial only) |
+| Shot Breakdown | `shots`: `{ "range": "0–3s", "text": "..." }` per line |
+| Signature moves | `signatureMoves` (one string each) |
+| Audio | `audio` |
+| Estimate · Key risk | two fields: `estimate` is the render time only (a first guess now; update it once Step 3 has measured the per-frame time), `risk` is the key risk in one line |
+| Why it fits | `whyItFits` |
+| Preview | `preview`: the style frame; `motionTest`: the 2–4s motion test, only for motion-driven treatments (paths relative to the project) |
+
+`chosen` stays `null` until sign-off, then records the pick: `{ "id": "B" }`, plus `mix` (`[{ "option": "A", "element": "Look" }]`) when the user combines treatments and `notes` for revisions. Keep all options after sign-off; the chosen content is expanded into `storyboard.json`.
 
 ## Shot Count by Profile
 

@@ -1,0 +1,105 @@
+{
+  "inputs": {
+    "topic": "A paper plane folds itself from a sticky note and carries a single word across a desk.",
+    "keyTakeaway": "Small ideas travel further than you think.",
+    "profile": "stylized",
+    "provablyTrue": "Concept piece; no factual claims.",
+    "neverClaim": "No product, brand or performance claims.",
+    "source": "User idea in chat; no source files.",
+    "realAssets": "none: labelled concept",
+    "specs": "8s, 1920x1080, 30fps",
+    "brand": "paper #F4EFE6, ink #1F2430, accent #E4572E; typeface Inter",
+    "audio": "synthesized: soft tick per fold, whoosh on launch; no VO; -14 LUFS"
+  },
+  "direction": {
+    "look": "Flat paper cut-out on a warm desk, soft top light, gentle paper grain.",
+    "pacing": "stylized: shots >= 0.7s, the launch shot holds 3s.",
+    "persistentActor": "The sticky note that becomes the plane, keeping its accent corner.",
+    "camera": "Slow push in on the desk, cut to an insert of the fold, crane up to follow the flight.",
+    "signatureMoves": "The note folds into the plane; the word rides the wing; the plane lands as the period of the sentence.",
+    "avoid": "Default centered title over gradient; everything fading in at once."
+  },
+  "beatGrid": "No score; cuts land on fold ticks at 1.786s and 2.550s.",
+  "build": {
+    "picture": "single HTML file with Canvas 2D",
+    "render": "render.py, 1920x1080, 30fps, 8s; no motion blur",
+    "audio": "audio_tools.py sfx for ticks and whoosh; mix to -14 LUFS"
+  },
+  "gotchas": [
+    "Wait for fonts before capture.",
+    "Keep the accent corner visible in every shot so the actor stays on-model."
+  ],
+  "shots": [
+    {
+      "id": "s1",
+      "duration": 1.786,
+      "techniques": {
+        "framing": "framing/wide-shot.md",
+        "angle": "camera-angles/eye-level.md",
+        "movement": "camera-movement/push-in.md",
+        "transition": "editing/match-cut.md"
+      },
+      "tags": ["lighting/top-light.md"],
+      "assets": [],
+      "text": {
+        "picture": "A tidy desk; a single orange-cornered sticky note reads 'idea'.",
+        "job": "Hook: the note is the hero.",
+        "camera": "Push in 1.00 -> 1.08 from frame 0.",
+        "transition": "The note's corner lifts and matches into the fold insert."
+      }
+    },
+    {
+      "id": "s2",
+      "duration": 0.764,
+      "techniques": {
+        "framing": "framing/insert.md",
+        "angle": "camera-angles/high-angle.md",
+        "movement": "camera-movement/fixed-cam.md",
+        "transition": "editing/smash-cut.md"
+      },
+      "tags": [],
+      "assets": [],
+      "text": {
+        "picture": "Two quick folds crease the note into a dart.",
+        "job": "Transformation.",
+        "audio": "Tick on each fold."
+      }
+    },
+    {
+      "id": "s3",
+      "duration": 3.164,
+      "techniques": {
+        "framing": "framing/medium-shot.md",
+        "angle": "camera-angles/low-angle.md",
+        "movement": "camera-movement/crane-up.md",
+        "transition": "editing/graphic-match.md"
+      },
+      "tags": ["lighting/rim-light.md", "color/warm-amber.md"],
+      "assets": [],
+      "text": {
+        "picture": "The plane launches; the word 'idea' rides the wing across the desk.",
+        "job": "Payoff: the idea travels.",
+        "action": "In: plane at rest; main: launch and glide; out: dip toward the notebook.",
+        "camera": "Crane up following the arc, subject >= 1/3 of frame.",
+        "audio": "Whoosh peaking at 3.4s.",
+        "transition": "The plane's nose becomes the period of the closing line."
+      }
+    },
+    {
+      "id": "s4",
+      "duration": 2.286,
+      "techniques": {
+        "framing": "framing/close-up.md",
+        "angle": null,
+        "movement": "camera-movement/push-in.md",
+        "transition": null
+      },
+      "tags": [],
+      "assets": [],
+      "text": {
+        "picture": "The plane lands as the period: 'Small ideas travel far.'",
+        "job": "Takeaway, readable for 2s."
+      }
+    }
+  ]
+}

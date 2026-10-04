@@ -52,7 +52,7 @@ Rules:
 
 ### Mix & Master
 
-- `mix out/picture.mp4 out/final.mp4 --score audio/music.mp3 --music-lufs <level> --plan audio/plan.json`: shelf + compressor music chain (`--no-chain` to skip), music set to `--music-lufs`, every effect solved in its own band with floors and caps, video copied untouched, per-event report written next to the output.
+- `mix out/picture.mp4 out/final.mp4 --score audio/music.mp3 --music-lufs <level> --plan audio/plan.json --sfx-dir audio/sfx`: keep the plan at `audio/plan.json` and the effect files in `audio/sfx/`. Shelf + compressor music chain (`--no-chain` to skip), music set to `--music-lufs`, every effect solved in its own band with floors and caps, video copied untouched, per-event report written next to the output.
 - Set the master level through `--music-lufs` and the plan, not `normalize`: loudnorm is dynamic and shifts the SFX balance.
 - **Loudness:** reference launch films master around -14 LUFS (some at -7 to -10). The approved calm film landed at -19 LUFS integrated once the client lowered the music 30%, with effects clearly audible on top. A dense effects layer at -14 was rejected as too loud.
 

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "storyboard.schema.json",
+  "title": "Cinematic video storyboard",
+  "description": "Single source of truth for a project's brief and shots. brief.md is generated from it by scripts/brief.py. Shot order is array order; start/end times are derived from durations.",
+  "type": "object",
+  "required": ["inputs", "direction", "beatGrid", "build", "gotchas", "shots"],
+  "additionalProperties": false,
+  "properties": {
+    "inputs": {
+      "type": "object",
+      "required": ["topic", "keyTakeaway", "profile", "provablyTrue", "neverClaim", "source", "realAssets", "specs", "brand", "audio"],
+      "additionalProperties": false,
+      "properties": {
+        "topic": { "$ref": "#/$defs/text" },
+        "keyTakeaway": { "$ref": "#/$defs/text" },
+        "profile": { "enum": ["stylized", "commercial"] },
+        "business": { "$ref": "#/$defs/text", "description": "Commercial only: what the business does, who buys, the viewer's problem." },
+        "cta": { "$ref": "#/$defs/text", "description": "Commercial only: the single next action." },
+        "provablyTrue": { "$ref": "#/$defs/text" },
+        "neverClaim": { "$ref": "#/$defs/text" },
+        "source": { "$ref": "#/$defs/text" },
+        "realAssets": { "$ref": "#/$defs/text" },
+        "specs": { "$ref": "#/$defs/text" },
+        "brand": { "$ref": "#/$defs/text" },
+        "audio": { "$ref": "#/$defs/text" }
+      }
+    },
+    "direction": {
+      "type": "object",
+      "required": ["look", "pacing", "persistentActor", "camera", "signatureMoves", "avoid"],
+      "additionalProperties": false,
+      "properties": {
+        "look": { "$ref": "#/$defs/text" },
+        "pacing": { "$ref": "#/$defs/text" },
+        "persistentActor": { "$ref": "#/$defs/text" },
+        "camera": { "$ref": "#/$defs/text" },
+        "signatureMoves": { "$ref": "#/$defs/text" },
+        "avoid": { "$ref": "#/$defs/text" }
+      }
+    },
+    "beatGrid": { "$ref": "#/$defs/text", "description": "Beat grid or VO timeline." },
+    "build": {
+      "type": "object",
+      "required": ["picture", "render", "audio"],
+      "additionalProperties": false,
+      "properties": {
+        "picture": { "$ref": "#/$defs/text", "description": "Stack for the picture." },
+        "render": { "$ref": "#/$defs/text", "description": "Render settings, e.g. motion blur subframes and shutter." },
+        "audio": { "$ref": "#/$defs/text", "description": "Score, SFX, VO and loudness target." }
+      }
+    },
+    "gotchas": { "type": "array", "items": { "$ref": "#/$defs/text" } },
+    "renderRoot": { "type": "string", "description": "HTTP root for render.py --root, relative to the project directory." },
+    "shots": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/shot" } }
+  },
+  "$defs": {
+    "text": { "type": "string", "minLength": 1 },
+    "shot": {
+      "type": "object",
+      "required": ["id", "duration", "techniques", "tags", "assets", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "duration": { "type": "number", "exclusiveMinimum": 0 },
+        "techniques": {
+          "type": "object",
+          "required": ["framing", "angle", "movement", "transition"],
+          "additionalProperties": false,
+          "properties": {
+            "framing": { "$ref": "#/$defs/slot", "pattern": "^framing/" },
+            "angle": { "$ref": "#/$defs/slot", "pattern": "^camera-angles/" },
+            "movement": { "$ref": "#/$defs/slot", "pattern": "^camera-movement/" },
+            "transition": { "$ref": "#/$defs/slot", "pattern": "^editing/" }
+          }
+        },
+        "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/technique" } },
+        "assets": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "text": {
+          "type": "object",
+          "required": ["picture", "job"],
+          "additionalProperties": false,
+          "properties": {
+            "picture": { "$ref": "#/$defs/text" },
+            "job": { "$ref": "#/$defs/text" },
+            "action": { "$ref": "#/$defs/text" },
+            "camera": { "$ref": "#/$defs/text" },
+            "audio": { "$ref": "#/$defs/text" },
+            "transition": { "$ref": "#/$defs/text" }
+          }
+        }
+      }
+    },
+    "technique": {
+      "type": "string",
+      "pattern": "^[a-z-]+/[a-z0-9-]+\\.md$",
+      "description": "<category>/<slug>.md, resolved in the skill's references/techniques/ first, then in the project's techniques/ (custom techniques). brief.py fails if neither has it."
+    },
+    "slot": {
+      "description": "A technique path, or null when the slot is deliberately left empty.",
+      "oneOf": [{ "$ref": "#/$defs/technique" }, { "type": "null" }]
+    }
+  }
+}

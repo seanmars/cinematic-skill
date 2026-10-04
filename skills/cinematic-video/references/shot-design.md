@@ -30,8 +30,31 @@ Use `genre-looks`, `viral-looks`, `color` and `lighting` when writing a treatmen
 1. **Search INDEX.md** with Grep for effect or emotion words (`reveal`, `tension`, `isolation`, `scale`, `speed`); summaries describe the visual effect and mood, so emotion words find candidates.
 2. **Read a category block** in INDEX.md when comparing options of one kind ("which shot size here?").
 3. **Read only the techniques you will use**, usually 3–8 per scene, for Compared With Similar Techniques and Common Mistakes. Skip basics (Close-Up, Wide Shot, Eye Level); spend reads on key shots and close calls.
+4. **Not in the library?** First rule out a different name: search INDEX.md for the effect and mood words. If it really is missing, search the web; when you find it, write it as a custom technique in the project (below) with the source URL. If the web has nothing either, ask the user how it should look and discuss the approach before writing it (`source: user`). Never add files to the skill's library.
 
-General film knowledge is fine, but when the library has a matching technique, cite its file in the brief.
+General film knowledge is fine, but when the library has a matching technique, record its file in the shot's technique slots or tags in `storyboard.json`.
+
+### Custom techniques
+A technique the library lacks lives in the project at `video/<slug>/techniques/<category>/<slug>.md`, in the library's format, under one of the library's categories:
+
+```markdown
+---
+name: Snap Whip Reveal
+category: camera-movement
+slug: snap-whip-reveal
+source: https://example.com/where-you-found-it   # or: user
+---
+
+# Snap Whip Reveal
+
+Summary: One sentence on the visual effect and mood.
+
+## How It Works
+
+- How to achieve it, and how to build it in code.
+```
+
+Reference it like a library technique (`camera-movement/snap-whip-reveal.md`). `brief.py` looks in the library first, then in the project, and stops with an error listing every path found in neither, so a typo never reaches the brief.
 
 ## Storyboarding
 
@@ -44,6 +67,8 @@ After building suspense for a reveal, follow with a shot that shows the subject 
 Decide in order: shot size → angle → camera move → focal length → composition → transition. Lighting, color and atmosphere are usually scene-level; change them only at emotional turns.
 
 Every choice must answer "why does this beat need it". Unmotivated camera moves add render cost and visual clutter. Use Compared With Similar Techniques to choose between close options.
+
+Record the choices in each shot of `storyboard.json`. Fill all four technique slots with a technique path (`camera-movement/push-in.md`, from the library or a custom technique): `framing` from `framing/`, `angle` from `camera-angles/`, `movement` from `camera-movement/`, `transition` from `editing/`. Use `null` only when no technique fits, and describe the choice in the shot's text instead; `transition` is also `null` when the shot does not end on a cut (a continuous take carried into the next beat, or the last shot). Other techniques (lens, composition, lighting, color, atmosphere, effects) go in `tags`. Timing, speed and how the move lands go in the free-text `camera` and `transition` fields. If a slot and the text disagree, the slot is the intent: rewrite the text and the code to match it.
 
 Plan sound with the shots: many transitions and reveals are sound-led (hear the source before seeing it; a J-cut brings audio in early). SFX land on the frame of the action.
 
