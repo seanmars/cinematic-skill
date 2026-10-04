@@ -24,7 +24,7 @@ function studioPlugin(workspace) {
         await writeJson(file, value)
       }
       const warnings = createWarnings()
-      server.middlewares.use(createApi({ workspace, write, changeLog: createChangeLog(), warnings }))
+      server.middlewares.use(createApi({ workspace, write, changeLog: createChangeLog(workspace), warnings }))
       server.middlewares.use(createPreview(workspace))
       pushFileChanges(server, { workspace, recentWrites, warnings })
       pushPolledState(server, workspace)

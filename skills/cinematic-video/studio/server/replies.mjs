@@ -82,6 +82,6 @@ export async function postReply(workspace, slug, gateId, body, { write, changeLo
   const parsed = parseReply(dir, gate.stage, body)
   const reply = { ...parsed, changes: [...new Set([...changeLog.list(slug, gateId), ...parsed.changes])] }
   await write(file, reply)
-  changeLog.clear(slug, gateId)
+  await changeLog.clear(slug, gateId)
   return { reply }
 }

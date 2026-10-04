@@ -1,9 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { readJson } from './files.mjs'
+import { readJson, removeFile, writeJson } from './files.mjs'
 import { HttpError, badRequest } from './http-error.mjs'
 import { projectDir, requireOpenGate } from './projects.mjs'
 import { ripple } from './ripple.mjs'
+import { STATE_DIR } from './sessions.mjs'
 import { isKnownTechnique } from './techniques.mjs'
 
 // The four main technique slots, one technique of its category each (or
@@ -14,18 +15,32 @@ const TEXT_FIELDS = new Set(['picture', 'job', 'action', 'camera', 'audio', 'tra
 const REQUIRED_TEXT = new Set(['picture', 'job'])
 
 // The fields edited at each open gate, kept until its reply carries them to
-// Claude. In memory: a reloaded page still finds them; a restarted studio
-// does not.
-export function createChangeLog() {
+// Claude. In a file the studio alone writes, so a studio started again (the
+// last session leaving stops it, D12) still sends them; the copy in memory
+// keeps edits that land together from overwriting each other.
+export function createChangeLog(workspace) {
   const pending = new Map()
   const key = (slug, gateId) => `${slug}/${gateId}`
+  const file = (slug, gateId) => path.join(workspace, STATE_DIR, 'changes', slug, `${gateId}.json`)
+  const list = (slug, gateId) => {
+    if (!pending.has(key(slug, gateId))) {
+      const saved = readJson(file(slug, gateId))
+      pending.set(key(slug, gateId), Array.isArray(saved) ? saved : [])
+    }
+    return pending.get(key(slug, gateId))
+  }
   return {
-    add(slug, gateId, change) {
-      const changes = pending.get(key(slug, gateId)) ?? []
-      if (!changes.includes(change)) pending.set(key(slug, gateId), [...changes, change])
+    async add(slug, gateId, change) {
+      const changes = list(slug, gateId)
+      if (changes.includes(change)) return
+      pending.set(key(slug, gateId), [...changes, change])
+      await writeJson(file(slug, gateId), pending.get(key(slug, gateId)))
     },
-    list: (slug, gateId) => pending.get(key(slug, gateId)) ?? [],
-    clear: (slug, gateId) => pending.delete(key(slug, gateId)),
+    list,
+    async clear(slug, gateId) {
+      pending.delete(key(slug, gateId))
+      await removeFile(file(slug, gateId))
+    },
   }
 }
 
@@ -97,7 +112,7 @@ export async function postDurationEdit(workspace, slug, body, { write, changeLog
   const result = ripple(storyboard.shots, plan, shotId, duration, { hasScore: hasScore(dir, storyboard) })
   await write(storyboardFile, { ...storyboard, shots: result.shots })
   if (result.plan !== null) await write(planFile, result.plan)
-  for (const change of result.changes) changeLog.add(slug, gate.gateId, change)
+  for (const change of result.changes) await changeLog.add(slug, gate.gateId, change)
   return { changes: result.changes }
 }
 
@@ -114,6 +129,6 @@ export async function postStoryboardEdit(workspace, slug, body, { write, changeL
   applyEdit(dir, shot, body.field, body.value)
   await write(file, storyboard)
   const change = `shots[${shot.id}].${body.field}`
-  changeLog.add(slug, gate.gateId, change)
+  await changeLog.add(slug, gate.gateId, change)
   return { changes: [change] }
 }

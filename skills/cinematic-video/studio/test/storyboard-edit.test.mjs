@@ -60,6 +60,24 @@ describe('storyboard edits at a gate', () => {
     expect((await studio.get('/api/projects/demo')).body.changes).toEqual([])
   })
 
+  // A studio started again for the workspace (as /studio start does after the
+  // last session left) knows nothing the one before held in memory.
+  it('keeps the change list across a studio restart, until the reply', async () => {
+    openGate(workspace, '003-storyboard')
+    await studio.post(EDIT_URL, { shot: 's1', field: 'techniques.movement', value: 'camera-movement/crane-up.md' })
+
+    const restarted = await startStudio(workspace)
+    const pending = (await restarted.get('/api/projects/demo')).body.changes
+    await restarted.post('/api/projects/demo/replies/003-storyboard', { decision: 'approve', notes: '', changes: [] })
+    const afterReply = await startStudio(workspace)
+
+    expect(pending).toEqual(['shots[s1].techniques.movement'])
+    expect(readJson(workspace, 'video/demo/studio/replies/003-storyboard.json').changes).toEqual([
+      'shots[s1].techniques.movement',
+    ])
+    expect((await afterReply.get('/api/projects/demo')).body.changes).toEqual([])
+  })
+
   it.each([
     ['tags', ['lighting/top-light.md', 'color/warm-amber.md']],
     ['techniques.transition', null],
