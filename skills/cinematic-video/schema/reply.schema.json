@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "reply.schema.json",
+  "title": "Studio gate reply",
+  "description": "video/<slug>/studio/replies/<gateId>.json. Written once by the studio (or a test) to answer the gate of the same gateId.",
+  "type": "object",
+  "required": ["decision", "notes", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "decision": {
+      "type": "string",
+      "minLength": 1,
+      "description": "\"approve\" approves the stage; the other decisions per stage are defined by the web studio."
+    },
+    "notes": { "type": "string", "description": "The user's comments; may be empty." },
+    "changes": {
+      "type": "array",
+      "description": "The fields the user edited in the studio, so Claude knows what to re-read.",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "choice": {
+      "type": "object",
+      "description": "What the user chose, for the decisions that choose: pick {id}, mix {id, mix}, another-round {priorities}, regenerate {regenerate}. The other decisions carry none.",
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z]$", "description": "The treatment picked, or the base of a mix." },
+        "mix": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Elements taken from the treatments, as in treatments.json chosen.mix.",
+          "items": {
+            "type": "object",
+            "required": ["option", "element"],
+            "additionalProperties": false,
+            "properties": {
+              "option": { "type": "string", "pattern": "^[A-Z]$" },
+              "element": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "priorities": {
+          "type": "array",
+          "description": "What the next Gauntlet round looks at first.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "regenerate": {
+          "type": "array",
+          "minItems": 1,
+          "description": "The generated assets to make again, as paths relative to the project.",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

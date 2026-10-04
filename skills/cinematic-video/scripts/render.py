@@ -16,9 +16,10 @@ Examples
   blur:      uv run render.py page.html out.mp4 --fps 60 --duration 14 --subframes 8 --shutter 270
   segment:   uv run render.py page.html seg.mp4 --fps 30 --start 8 --duration 4
   seek test: uv run render.py page.html qa/seek --seek-test 1.0 7.5 12.25
+  progress:  uv run render.py page.html out.mp4 --fps 30 --duration 12 --progress-file progress.json
 Query strings are allowed: render.py "page.html?raw=1" out.mp4 ...
 """
-import argparse, functools, http.server, pathlib, subprocess, sys, threading, time, urllib.parse
+import argparse, datetime, functools, http.server, json, os, pathlib, subprocess, sys, threading, time, urllib.parse
 
 from playwright.sync_api import sync_playwright
 
@@ -81,6 +82,36 @@ def seek_test(pg, times, prefix):
     return not bad
 
 
+class Progress:
+    """Frame progress for --progress-file, about once a second: what the web studio shows during a render.
+
+    Written whole (temp file + os.replace) so a reader never sees half of it. A write that fails is
+    skipped; the next one tries again, and a render never stops over its progress file."""
+
+    def __init__(self, path, frames, sub, t0):
+        self.path, self.frames, self.sub, self.t0 = pathlib.Path(path), frames, sub, t0
+        self.written_at = None
+
+    def write(self, sample, done=False):
+        now = time.time()
+        if not done and self.written_at is not None and now - self.written_at < 1:
+            return
+        self.written_at = now
+        samples, elapsed = self.frames * self.sub, now - self.t0
+        eta = 0 if done else (elapsed / sample * (samples - sample) if sample else None)
+        record = {"frame": sample // self.sub, "frames": self.frames, "sample": sample, "samples": samples,
+                  "elapsed": round(elapsed, 2), "eta": None if eta is None else round(eta, 2),
+                  "updatedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
+                  "done": done}
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = self.path.with_name(self.path.name + ".tmp")
+            tmp.write_text(json.dumps(record), encoding="utf-8")
+            os.replace(tmp, self.path)
+        except OSError:
+            pass
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("page"); ap.add_argument("out", help="output file, or file prefix for --seek-test")
@@ -95,6 +126,7 @@ def main():
     ap.add_argument("--audio", help="audio file to mux (trimmed to the video)")
     ap.add_argument("--crf", type=int, default=16)
     ap.add_argument("--root", help="HTTP root directory (default: the page's directory)")
+    ap.add_argument("--progress-file", help="video mode: keep frame progress and ETA in this JSON file (the web studio reads it)")
     a = ap.parse_args()
     W, H = map(int, a.size.lower().split("x"))
     url = serve(a.page, a.root)
@@ -134,7 +166,10 @@ def main():
 
         t0 = time.time()
         total = frames * sub
+        progress = Progress(a.progress_file, frames, sub, t0) if a.progress_file else None
         for i in range(total):
+            if progress:
+                progress.write(i)
             f, j = divmod(i, sub)
             pg.evaluate("t => window.render(t)", a.start + f / a.fps + j * span / sub)
             ff.stdin.write(pg.screenshot(type="png"))
@@ -144,6 +179,8 @@ def main():
     ff.stdin.close()
     if ff.wait() != 0:
         sys.exit("ffmpeg failed")
+    if progress:
+        progress.write(total, done=True)
     print(f"{a.out}: {frames} frames x {sub} samples, {a.size} @ {a.fps}fps, rendered in {time.time() - t0:.1f}s")
 
 

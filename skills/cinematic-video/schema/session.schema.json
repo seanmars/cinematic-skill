@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session.schema.json",
+  "title": "Studio session",
+  "description": "node_modules/.cinematic-studio/sessions/<sessionId>.json. Written by that session's mod: heartbeat while it runs, online false when it ends.",
+  "type": "object",
+  "required": ["sessionId", "shortId", "startedAt", "heartbeatAt", "online", "project"],
+  "additionalProperties": false,
+  "properties": {
+    "sessionId": { "type": "string", "minLength": 1 },
+    "shortId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The label the terminal status line and the studio both show."
+    },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "heartbeatAt": { "type": "string", "format": "date-time" },
+    "online": { "type": "boolean" },
+    "project": {
+      "description": "The slug of the project assigned to this session, or null.",
+      "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }]
+    },
+    "activity": {
+      "type": "array",
+      "description": "The latest tool calls (at most 50, oldest first), so the studio can show what Claude is doing.",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "required": ["tool", "summary", "startedAt", "endedAt"],
+        "additionalProperties": false,
+        "properties": {
+          "tool": { "type": "string", "minLength": 1 },
+          "summary": {
+            "type": "string",
+            "description": "A shell call's first word and script, a subagent's description, else the tool name."
+          },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "endedAt": {
+            "description": "null while the call runs.",
+            "oneOf": [{ "type": "null" }, { "type": "string", "format": "date-time" }]
+          }
+        }
+      }
+    }
+  }
+}

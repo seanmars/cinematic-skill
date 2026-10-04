@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "settings.schema.json",
+  "title": "Studio project settings",
+  "description": "video/<slug>/studio/settings.json. Written by the studio when the user changes a project's settings; the mod reads it when Claude opens a gate.",
+  "type": "object",
+  "required": ["autoContinue"],
+  "additionalProperties": false,
+  "properties": {
+    "autoContinue": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "The stages whose gate approves itself: Claude records the gate and goes on without stopping.",
+      "items": {
+        "enum": ["intake", "treatments", "storyboard", "assets", "build-animatic", "build-polish", "audio", "gauntlet", "deliver"]
+      }
+    }
+  }
+}

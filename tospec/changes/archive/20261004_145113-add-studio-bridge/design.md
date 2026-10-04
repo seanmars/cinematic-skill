@@ -47,6 +47,8 @@ gates/<seq>-<stage>.json   (mod 寫)        replies/<seq>-<stage>.json (studio �
 - **reply** 包含 `decision`、`notes` 和 `changes`.
 - **assignment** 的內容是 `{ slug, sessionId, assignedAt, reason }`.
 - **session** 的內容是 `{ sessionId, shortId, startedAt, heartbeatAt, online, project }`.
+- **專案的 `studio/settings.json`** (studio 寫,本 change 只讀) 的 auto-continue 欄位是 `{ "autoContinue": ["audio", ...] }`,列出設為 auto-continue 的 stage.
+- **`open_gate` 工具** 的輸入是 `{ project, stage, payload }`;序號取 `gates/` 中最大的序號加一.
 
 - **Why**: mod 沒有 rename 和 lock;每個檔案只有一個寫入者,而且只新增不改寫,就不需要鎖.
 - **Alternative (rejected)**: 單一 state.json 加鎖檔.
@@ -62,8 +64,14 @@ gates/<seq>-<stage>.json   (mod 寫)        replies/<seq>-<stage>.json (studio �
 
 其他 hook:
 - `prompt.compose`: 加入 web 模式的協定段落,內容包含每個階段都開 gate、覆蓋單一 gate 規則、略過已處理的 gateId、收到改動清單後要同步哪些內容.
-- `tool.call` (Bash): 依 D5 判斷是否要 deny.
+- `tool.call` (Bash、PowerShell): 依 D5 判斷是否要 deny.
 - `session.end`: 把 session 檔標成離線.
+
+實作限制 (spike 確認):
+- `$` 只能傳給檔案頂層宣告的函式 (`claude plugin validate` 會檢查),所以輪詢、送達這些 helper 都寫成頂層函式.
+- 模組變數在 hot reload 時會重置,所以「是否已送達」只能看 gate 檔的 `deliveredAt`,不能存在記憶體.
+- 檔案路徑一律用 `$.session.root()` 組成絕對路徑: 相對路徑會被引擎解析成以引擎自己的 cwd 為準,而 root 不會因為 shell 的 `cd` 改變.
+- 輪詢不重疊: `$.prompt.submit` 要等 session 閒置才 resolve,上一次輪詢還在等待時就跳過這一次,避免同一個回覆被送出多次.
 
 - **Why**: 由 mod 自己檢查 workspace 標記,就算 manifest 意外出現在全域副本,也不會在其他專案啟動.
 - **Trade-off**: 輪詢有約 2 秒的延遲.mod 沒有 watch 的 API,這是能做到的最快方式.
@@ -75,7 +83,7 @@ mod 先 `await $.prompt.submit(...)`,等新的一輪開始之後,才把 `deliver
 - **Trade-off**: 實際的保證是「至少一次,並可辨識重複」.
 
 ### D5: 擋下整片 render 的判斷規則
-Bash `tool.call` 的指令要**全部符合**以下條件才會被 deny:
+Bash 或 PowerShell `tool.call` 的指令要**全部符合**以下條件才會被 deny (Windows 上 Claude 也可能用 PowerShell 工具執行 render):
 - 呼叫的是 skill 的 render.py.
 - 輸出路徑在專案的 `out/` 底下,而且是影片檔.
 - 沒有 `--still` 或 `--seek-test`.
@@ -84,24 +92,27 @@ Bash `tool.call` 的指令要**全部符合**以下條件才會被 deny:
 
 deny 訊息會要求 Claude 先呼叫 `open_gate(build-polish)`.
 
+- 專案取自指令中的 `video/<slug>`,沒有時用這個 session 接手的專案.
+- 整片長度是專案 `storyboard.json` 各 shot `duration` 的總和;讀不到時不擋.render.py 的影片輸出一定要帶 `--duration`,所以「有 `--duration`」不代表部分 render.
+
 - **Why**: 規則越窄越不容易誤擋;要防的只有最貴的那一個動作.
 
 ### D6: init 用純 ESM 實作,不依賴 git
 `init.mjs` 只使用 Node 內建模組,排除清單直接寫死 (`node_modules`、`__pycache__`、`*.pyc`、manifest 路徑),因為透過 `npx skills add` 安裝的副本沒有 `.git`.產生的檔案如下:
-- manifest: `.claude-plugin/plugin.json` 和 `hooks/hooks.json`,指向 `studio/mod/register.ts`.如果 spike 發現不能引用 hooks 目錄外的路徑,就改成產生一個 re-export stub.
-- workspace 標記: `studio.config.json`,內容包含 skill 版本.
+- manifest: `.claude-plugin/plugin.json` 和 `hooks/hooks.json`,hooks.json 直接指向 `../studio/mod/register.ts` (spike 確認可以引用 hooks 目錄外的模組).
+- workspace 標記: `studio.config.json`,內容是 `{ skillVersion }`,取自 `studio/package.json` 的 `version` (studio、mod 和協定一起發佈,共用這個版本號).
 - `package.json`: 依賴取自 `studio/package.json`.
 - `.claude/settings.json`: allowlist 包含 `mcp__cinematic-video__*` 和 skill 的 uv 腳本;Notification hook 的 matcher 是 `permission_prompt`,執行 `node <skill>/studio/notify.mjs`,把等待狀態寫到 `node_modules/.cinematic-studio/permission/<session_id>.json`.
-- `.gitignore` 和 `video/`.
+- `.gitignore` (排除 `node_modules/` 和 render 輸出 `video/*/out/`,`video/*/studio/` 保持追蹤) 和 `video/`.
 
-Node 版本的下限取自 `studio/package.json` 的 `engines`.
+Node 版本的下限取自 `studio/package.json` 的 `engines`.下一步指示要提醒: 第一次在 workspace 開 `claude` 時要接受 trust 對話框,mod 才會載入 (OQ3).
 
 - **Why**: 依賴越少,在使用者的環境越不容易失敗;等待授權的資訊由 hook 腳本寫在自己的檔案裡,維持一個檔案一個寫入者.
-- **Alternative (rejected)**: 由 mod 透過 `classic.Notification` 記錄等待狀態.這樣不需要 settings hook,但 mod 能不能收到這個事件還沒驗證,先列入 spike.
+- **Alternative (rejected)**: 由 mod 透過 `classic.Notification` 記錄等待狀態.這樣不需要 settings hook,但 spike 沒能驗證 mod 收得到這個事件 (OQ7),所以維持 settings hook.
 
 ### D7: link 模式、開發骨架與 gitignore 檢查
-- **link 模式**: Windows 用 `fs.symlink(target, path, 'junction')`,其他平台用一般的 symlink;manifest 寫進原始碼目錄,而這些路徑已經在 repo 的 `.gitignore` 裡.`--seed <fixture>` 會把 fixture 複製進 workspace 的 `video/`.
-- **repo**: 根目錄 `package.json` 設為 private;`pnpm-workspace.yaml` 包含 `skills/cinematic-video/studio`;`pnpm test` 依序執行 vitest、mod 測試 (`claude plugin test`) 和 pytest.
+- **link 模式**: Windows 用 `fs.symlink(target, path, 'junction')`,其他平台用一般的 symlink;manifest 寫進原始碼目錄,而這些路徑已經在 repo 的 `.gitignore` 裡.manifest 路徑包含 `.claude-plugin/`、`hooks/hooks.json`,以及引擎載入 manifest 後在 skill 根目錄寫入的 `tsconfig.json` (spike 發現,內容只是 extends `.claude-plugin/types/`).`--seed <fixture>` 會把 fixture 複製進 workspace 的 `video/`.
+- **repo**: 根目錄 `package.json` 設為 private;`pnpm-workspace.yaml` 包含 `skills/cinematic-video/studio`;`pnpm test` 依序執行 vitest、mod 測試 (`claude plugin validate` 加上 `claude plugin test`,對象都是 `skills/cinematic-video`) 和 pytest.mod 測試需要 manifest,而 manifest 由 playground 的 link 模式寫進原始碼,所以新 clone 的 repo 要先執行一次 `pnpm playground`.
 - **gitignore 檢查**: 由 vitest 列出 `git ls-files --others --ignored --exclude-standard skills/cinematic-video`,除了 manifest 和快取之外不能有其他檔案;不在 git repo 裡時就略過.
 - **playground**: `playground/` 由 `init --link --seed fixtures/demo` 建立,現有 untracked 的 `video/lunelle-promo` 搬進 `playground/video/`.
 
@@ -112,7 +123,7 @@ Node 版本的下限取自 `studio/package.json` 的 `engines`.
 
 接縫在 **workspace 的檔案契約** (D2).
 
-- **mod**: 用 `claude plugin test` 搭配暫存 workspace 的檔案.寫入 assignment 和 reply 之後執行計時器,斷言 `prompt.submit` 剛好被呼叫一次、`deliveredAt` 已寫入、只處理指派給自己的專案、心跳與離線標記,以及 D5 的 deny 規則.
+- **mod**: 用 `claude plugin test`.測試環境底下沒有真實的 fs,所有 `$` 呼叫都要由測試的 `on(...)` 回應,所以由 `on('fs.*')` 在記憶體中提供 workspace 檔案 (仍然是 D2 的路徑與 JSON 內容),`mock.clock` 推進計時器,`on('prompt.submit')` 記錄喚醒.寫入 assignment 和 reply 之後推進計時器,斷言 `prompt.submit` 剛好被呼叫一次、`deliveredAt` 已寫入、只處理指派給自己的專案、心跳與離線標記,以及 D5 的 deny 規則.
 - **init**: 用 vitest 對暫存目錄執行 `init.mjs` (一般模式和 link 模式),斷言產生的檔案、排除規則和錯誤情況;`notify.mjs` 則以 stdin 輸入,斷言寫出的檔案.
 - **gitignore 檢查**: vitest.
 
@@ -126,18 +137,24 @@ Node 版本的下限取自 `studio/package.json` 的 `engines`.
 
 ## Risks / Trade-offs
 
-- **mod 是新功能**: 公開文件上的狀態和最低版本還不確定,由 spike 確認.版本不支援時會退回 CLI 模式.
+- **mod 是 early access**: 公開資料顯示 function hooks 還沒正式發布,舊版本需要 `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`,API 也可能在版本之間變動 (OQ5).版本不支援時 manifest 不會生效,會退回 CLI 模式.
 - **重複送達的時間窗** (D4).
 - **Windows**: junction 和 symlink 的差異,以及 hook 指令的路徑分隔符號.
 - **模型不遵守協定**: 除了 D5 的那一個動作,其他都只靠協定;網頁上的警告在 add-web-studio 處理.
 
 ## Open Questions
 
-以下由 spike (D8) 回答:
-1. 全域有同名 skill (沒有 manifest) 時,project 層 skill 資料夾裡的 plugin 還會不會自動載入?
-2. 在 git repo 的子目錄 (playground) 開 Claude Code 時,哪一個 `.claude/skills` 會被當成 project 層?
-3. 自動載入的 plugin 是否需要 workspace trust 或使用者同意?
-4. `$.prompt.submit` 在閒置 session、以及使用者正在 terminal 打字時的實際行為?
-5. mod 功能需要的最低 Claude Code 版本,以及在公開文件中的狀態?
-6. hooks.json 能不能引用 hooks 目錄外的模組?
-7. mod 能不能透過 `classic.Notification` 收到權限提示事件?
+以下由 spike (D8) 回答,2026-10-04 在 Windows 11、Claude Code 2.1.289 驗證.除了 OQ7 之外的前提都成立,後續 tasks 不需要調整.
+
+1. **全域有同名 skill (沒有 manifest) 時,project 層 plugin 會不會自動載入?** 會.debug log 顯示 `cinematic-video@skills-dir loaded`;模型看到的 skill 描述則是全域那份 (Personal > Project),這也證實協定必須由 mod 注入.
+2. **在 git repo 的子目錄 (playground) 開 Claude Code 時,哪一個 `.claude/skills` 是 project 層?** 兩個都是: `[playground/.claude/skills, <repo>/.claude/skills]`,由近到遠.plugin 從 playground 那一份載入,不需要備案.
+3. **需要 workspace trust 或使用者同意嗎?** 需要 trust.在沒有 trust 過的目錄,project 層的 plugin 不會被採用 (`-p` 也一樣);在互動模式接受 trust 對話框後,同一個 session 就會載入 mod,沒有其他同意提示.已 trust 的 repo 底下的 playground 直接載入.
+4. **`$.prompt.submit` 的實際行為?** 閒置時,約 2 秒內就會開始新的一輪 (偵測到旗標後約 30ms resolve),prompt 會被包成 "The cinematic-video plugin sent a message" 的格式.使用者正在打字時也會立即開始這一輪,不會等輸入框清空,草稿會保留.headless 的 stream-json session 也可以喚醒.
+5. **最低版本與公開文件狀態?** 2.1.289 不需要 `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` 就能載入 (process env 和 settings env 都沒有這個值).公開資料顯示 function hooks 是 early access (GitHub issue #91870),2.1.260~2.1.274 需要這個旗標.確切的最低版本無法判定.
+6. **hooks.json 能不能引用 hooks 目錄外的模組?** 可以.`{ "modules": ["../studio/mod/register.ts"] }` 可以通過 validate,也能在 runtime 載入執行.
+7. **mod 能不能透過 `classic.Notification` 收到權限提示?** 未驗證.在這台機器的權限設定 (`Bash(*)` allow、`acceptEdits`) 下,四次嘗試都沒有跳出權限提示.D6 維持 settings 的 Notification hook,不受影響.
+
+其他發現:
+- `$.tool.register` 的工具由引擎在本機開的 HTTP MCP server 提供;呼叫時沒有跳出權限提示 (沒有 allow 規則、`acceptEdits` 模式).D6 的 allowlist 仍保留 `mcp__cinematic-video__*`,當作保險.
+- `session.end` 在 `/exit` 時觸發,`reason` 是 `prompt_input_exit`.
+- 實作限制與測試做法已寫進 D3 和 Testing Seams.

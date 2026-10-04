@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "progress.schema.json",
+  "title": "Studio build progress",
+  "description": "video/<slug>/studio/progress.json. Written by Claude during Build in web mode, as each shot moves on; storyboard.json is never used for this.",
+  "type": "object",
+  "required": ["shots"],
+  "additionalProperties": false,
+  "properties": {
+    "shots": {
+      "type": "object",
+      "description": "Keyed by the storyboard's shot id; a shot not listed has not been started.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "stills"],
+        "additionalProperties": false,
+        "properties": {
+          "status": { "enum": ["building", "done"] },
+          "stills": {
+            "type": "array",
+            "description": "The shot's QA stills, as paths relative to the project folder.",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}
